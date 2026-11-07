@@ -4,6 +4,10 @@
  * Target Google Drive Folder ID: 1IewvX8KRtt0nmRp7ZV8X8D_J_tkZn2uiL
  * Deploy as Web App: Execute as Me, Who has access: Anyone
  * Then paste the /exec URL into google-apps-script-config.json -> webAppUrl
+ *
+ * Drive structure: one subfolder per assignment title inside the target
+ * folder, e.g. Target Folder / quiz3 / Assignment_Rameez_Ali.pdf
+ * All students submitting "quiz3" land in the same "quiz3" subfolder.
  * =========================================================================
  */
 
@@ -49,6 +53,38 @@ function getTargetFolder(rawFolderId) {
       effectiveEmail: effectiveEmail,
       warning: "Target folder ID (" + cleanId + ") was not accessible to account [" + (effectiveEmail || "current user") + "]. Upload was safely saved in folder '" + folderName + "'."
     };
+  }
+}
+
+/**
+ * Sanitizes an assignment title into a valid Drive folder name.
+ * Keeps the title readable ("Quiz 3" stays "Quiz 3"); falls back to "General".
+ */
+function sanitizeFolderName(title) {
+  var clean = ("" + (title || ""))
+    .replace(/[\\/:*?"<>|#%&{}$!'@+`=]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean || "General";
+}
+
+/**
+ * Finds or creates the per-assignment subfolder inside the target folder.
+ * The script lock prevents two simultaneous submissions from creating
+ * duplicate folders for the same title.
+ */
+function getOrCreateTitleFolder(parentFolder, title) {
+  var folderName = sanitizeFolderName(title);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var existing = parentFolder.getFoldersByName(folderName);
+    if (existing.hasNext()) {
+      return existing.next();
+    }
+    return parentFolder.createFolder(folderName);
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -100,6 +136,7 @@ function doPost(e) {
     var base64Data = payload.fileData || payload.base64 || "";
     var mimeType = payload.mimeType || "application/octet-stream";
     var requestedFolderId = payload.folderId || DEFAULT_FOLDER_ID;
+    var assignmentTitle = (payload.assignmentTitle || payload.title || payload.submissionTitle || "").trim();
 
     if (!studentName) {
       throw new Error("Student Full Name is required.");
@@ -135,7 +172,8 @@ function doPost(e) {
 
     var targetFilename = cleanBaseName + "_" + cleanStudentName + extension;
     var folderResult = getTargetFolder(requestedFolderId);
-    var folder = folderResult.folder;
+    var titleFolder = getOrCreateTitleFolder(folderResult.folder, assignmentTitle);
+    var folder = titleFolder;
 
     var existingFiles = folder.getFilesByName(targetFilename);
     if (existingFiles.hasNext()) {
@@ -150,16 +188,19 @@ function doPost(e) {
     var successResponse = {
       status: "success",
       message: folderResult.fallback
-        ? "File uploaded to Drive in folder '" + folderResult.folderName + "'. (" + folderResult.warning + ")"
-        : "File successfully uploaded and saved to Google Drive.",
+        ? "File uploaded to Drive in folder '" + folderResult.folderName + "/" + titleFolder.getName() + "'. (" + folderResult.warning + ")"
+        : "File successfully uploaded to '" + titleFolder.getName() + "' folder in Google Drive.",
       fileId: createdFile.getId(),
       filename: targetFilename,
       originalFilename: originalFilename,
       studentName: studentName,
+      assignmentTitle: assignmentTitle,
       fileSize: createdFile.getSize(),
       fileUrl: createdFile.getUrl(),
       folderId: folderResult.folderId,
       folderName: folderResult.folderName,
+      submissionFolderId: titleFolder.getId(),
+      submissionFolderName: titleFolder.getName(),
       fallbackUsed: folderResult.fallback,
       timestamp: new Date().toISOString()
     };

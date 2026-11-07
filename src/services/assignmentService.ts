@@ -516,6 +516,7 @@ function firestoreUploadResult(localId: string): {
 async function uploadViaGoogleDrive(
   file: File,
   studentName: string,
+  assignmentTitle: string,
   onProgress?: ProgressCb
 ): Promise<{
   fileUrl: string;
@@ -540,6 +541,7 @@ async function uploadViaGoogleDrive(
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
       studentName,
+      assignmentTitle,
       filename: file.name,
       fileName: file.name,
       mimeType: file.type || 'application/octet-stream',
@@ -761,7 +763,7 @@ export async function submitAssignmentWork(input: {
   const existing = cached.find((item) => item.id === id);
 
   const uploaded = GOOGLE_APPS_SCRIPT_URL
-    ? await uploadViaGoogleDrive(input.file, input.studentName, input.onProgress)
+    ? await uploadViaGoogleDrive(input.file, input.studentName, input.assignment.title, input.onProgress)
     : await uploadFile(
         `assignments/${input.assignment.id}/submissions/${input.studentId}/${safeFileName(input.file.name)}`,
         `sub_${id}`,
