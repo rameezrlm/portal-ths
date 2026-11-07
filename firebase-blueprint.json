@@ -1,0 +1,210 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "IT Lab Student registered in the attendance system",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "contact": { "type": "string" },
+        "password": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "email"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily attendance record for a student on a specific date",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "date": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["present", "absent", "late", "early_left"]
+        },
+        "joinTime": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["studentId", "studentName", "date", "status"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Lab instructor with login credentials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "password": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "email"]
+    },
+    "GradeSection": {
+      "title": "GradeSection",
+      "description": "A gradebook section created once, e.g. Quiz or Assignment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["name", "totalMarks"]
+    },
+    "GradeAssessment": {
+      "title": "GradeAssessment",
+      "description": "An assessment inside a section, e.g. Quiz 1",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sectionId": { "type": "string" },
+        "name": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "createdAt": { "type": "string" },
+        "order": { "type": "number" }
+      },
+      "required": ["sectionId", "name", "totalMarks"]
+    },
+    "GradeMark": {
+      "title": "GradeMark",
+      "description": "Marks a student received on one assessment",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assessmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "marks": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["assessmentId", "studentId", "marks"]
+    },
+    "Ticket": {
+      "title": "Ticket",
+      "description": "A student request reviewed by a teacher",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["open", "approved", "in_progress", "resolved"]
+        },
+        "teacherNote": { "type": "string" },
+        "resolvedBy": { "type": "string" },
+        "resolvedAt": { "type": "string" },
+        "seenByStudent": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["studentId", "studentName", "subject", "message", "status"]
+    },
+    "AssignmentMaterial": {
+      "title": "AssignmentMaterial",
+      "description": "A document or slides file uploaded by a teacher for students to download",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "fileUrl": { "type": "string" },
+        "storagePath": { "type": "string" },
+        "uploadedBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "closesAt": { "type": "string" },
+        "localOnly": { "type": "boolean" }
+      },
+      "required": ["title", "description", "fileName", "closesAt"]
+    },
+    "AssignmentSubmission": {
+      "title": "AssignmentSubmission",
+      "description": "Student work submitted for an assignment before the close time",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assignmentId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "studentEmail": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileType": { "type": "string" },
+        "fileSize": { "type": "number" },
+        "fileUrl": { "type": "string" },
+        "storagePath": { "type": "string" },
+        "submittedAt": { "type": "string" },
+        "localOnly": { "type": "boolean" }
+      },
+      "required": ["assignmentId", "studentId", "fileName"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "A notice posted by a teacher for students to view",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["title", "message", "createdBy"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Collection of all enrolled students in the IT lab"
+    },
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Collection of daily attendance records keyed by studentId_date"
+    },
+    "/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Collection of teachers added by Admin"
+    },
+    "/gradeSections/{sectionId}": {
+      "schema": "GradeSection",
+      "description": "Gradebook sections such as Quiz, Assignment, and Project"
+    },
+    "/gradeAssessments/{assessmentId}": {
+      "schema": "GradeAssessment",
+      "description": "Individual assessments inside a grade section"
+    },
+    "/gradeMarks/{markId}": {
+      "schema": "GradeMark",
+      "description": "Student marks keyed by assessmentId_studentId"
+    },
+    "/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "Student tickets reviewed by teachers"
+    },
+    "/assignments/{assignmentId}": {
+      "schema": "AssignmentMaterial",
+      "description": "Assignment documents and slides uploaded by teachers"
+    },
+    "/assignmentSubmissions/{submissionId}": {
+      "schema": "AssignmentSubmission",
+      "description": "Student assignment submissions keyed by assignmentId_studentId"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Teacher announcements visible to students"
+    }
+  }
+}
