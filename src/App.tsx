@@ -16,6 +16,7 @@ import { TeacherAssignments } from './components/TeacherAssignments';
 import { StudentAssignments } from './components/StudentAssignments';
 import { TeacherAnnouncements } from './components/TeacherAnnouncements';
 import { StudentAnnouncements } from './components/StudentAnnouncements';
+import { StudentWebApps } from './components/StudentWebApps';
 import { StudentAttendance } from './components/StudentAttendance';
 import { CoursePicker } from './components/CoursePicker';
 import { StudentFormModal } from './components/StudentFormModal';
@@ -94,6 +95,7 @@ export default function App() {
     | 'assignments'
     | 'attendance'
     | 'tickets'
+    | 'apps'
     | 'notifications'
     | 'announcements'
     | 'profile'
@@ -470,6 +472,18 @@ export default function App() {
             >
               Tickets
             </button>
+            <button
+              id="tab-student-apps"
+              type="button"
+              onClick={() => setStudentView('apps')}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                studentView === 'apps'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              Apps
+            </button>
           </div>
           )}
 
@@ -512,6 +526,9 @@ export default function App() {
                   studentEmail={session.email}
                   onTicketsChanged={refreshTicketStats}
                 />
+              </div>
+              <div className={studentView === 'apps' ? '' : 'hidden'}>
+                <StudentWebApps />
               </div>
               <div className={studentView === 'notifications' ? '' : 'hidden'}>
                 <StudentNotifications

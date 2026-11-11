@@ -77,7 +77,7 @@ export const StudentTickets: React.FC<StudentTicketsProps> = ({
         message,
         classId,
       });
-      setTickets((prev) => [created, ...prev]);
+      setTickets((prev) => [created, ...prev.filter((item) => item.id !== created.id)]);
       setSubject('');
       setMessage('');
       setSuccess('Ticket submitted as a new issue. You will get updates as it moves forward.');

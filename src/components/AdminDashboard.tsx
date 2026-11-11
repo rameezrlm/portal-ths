@@ -19,6 +19,7 @@ import {
   Ticket as TicketIcon,
   CalendarDays,
   BookOpen,
+  AppWindow,
 } from 'lucide-react';
 import {
   fetchStudents,
@@ -36,6 +37,7 @@ import { fetchTickets, pendingTicketCount } from '../services/ticketService';
 import { TeacherTickets } from './TeacherTickets';
 import { AdminAttendance } from './AdminAttendance';
 import { AdminClasses } from './AdminClasses';
+import { AdminWebApps } from './AdminWebApps';
 import { fetchClasses } from '../services/classService';
 import type { Student, Teacher, UserSession } from '../types';
 
@@ -45,7 +47,7 @@ interface AdminDashboardProps {
   todayDisplay: string;
 }
 
-type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'tickets';
+type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'tickets' | 'apps';
 
 const AdminQuickTabs: React.FC<{
   viewMode: AdminViewMode;
@@ -62,6 +64,7 @@ const AdminQuickTabs: React.FC<{
     { id: 'teachers', label: `Teachers (${teachersCount})`, activeClass: 'text-emerald-700' },
     { id: 'attendance', label: 'Attendance', activeClass: 'text-sky-700' },
     { id: 'tickets', label: `Tickets (${pendingTickets})`, activeClass: 'text-amber-700' },
+    { id: 'apps', label: 'Web Apps', activeClass: 'text-emerald-700' },
   ];
 
   return (
@@ -521,7 +524,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 Administration Console
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Create class sections, assign teachers and students, then manage attendance and tickets.
+                Create class sections, manage users and attendance, and register apps for students.
               </p>
             </div>
 
@@ -673,6 +676,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-amber-600 group-hover:text-amber-700">
                   <span>Open Ticket Inbox</span>
+                  <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Card 6: Student Web Apps */}
+              <div
+                id="card-open-student-web-apps"
+                onClick={() => setViewMode('apps')}
+                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all cursor-pointer flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
+                      <AppWindow className="w-6 h-6" />
+                    </div>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                      Student portal
+                    </span>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">Web Apps</h3>
+                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                    Add or remove website shortcuts students can launch from their Apps section.
+                  </p>
+                </div>
+                <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-600 group-hover:text-emerald-700">
+                  <span>Manage Student Apps</span>
                   <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -1174,6 +1203,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               onStatsChange={setPendingTickets}
               description="Student tickets land here. Update the status and the student is notified in their Notifications tab."
             />
+          </div>
+        )}
+
+        {viewMode === 'apps' && (
+          <div className="space-y-6 animate-in fade-in duration-150">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setViewMode('overview')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs transition-colors hover:bg-slate-50 cursor-pointer">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to Overview
+                </button>
+                <div className="h-4 w-px bg-slate-200" />
+                <div className="flex items-center gap-1 text-xs"><span className="text-slate-400">Admin</span><span className="text-slate-300">/</span><span className="font-semibold text-slate-800">Web Apps</span></div>
+              </div>
+              <AdminQuickTabs viewMode={viewMode} onChange={setViewMode} classesCount={classesCount} studentsCount={students.length} teachersCount={teachers.length} pendingTickets={pendingTickets} />
+            </div>
+            <AdminWebApps showToast={showToast} />
           </div>
         )}
       </main>
