@@ -426,7 +426,7 @@ export async function exportGradebookResultSheetHtml(
   </table>
 
   <div class="footer">
-    Taleem-O-Hunar Society · IT Lab Attendance System · Result Sheet generated on ${escapeHtml(generatedOn)}
+    Taleem-O-Hunar Society · THS Tech labs LMS · Result Sheet generated on ${escapeHtml(generatedOn)}
   </div>
 </body>
 </html>`;

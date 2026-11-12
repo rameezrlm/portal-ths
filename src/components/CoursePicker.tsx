@@ -47,14 +47,14 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="course-picker-grid grid auto-rows-fr gap-4">
         {classes.map((course, index) => (
           <button
             key={course.id}
             id={`course-card-${course.id}`}
             type="button"
             onClick={() => onSelect(course.id)}
-            className="animate-zoom-in text-left bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group"
+            className="course-picker-card animate-zoom-in flex h-full min-h-[152px] flex-col text-left bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer group"
             style={{ animationDelay: `${index * 60}ms` }}
           >
             <div className="flex items-start justify-between gap-3 mb-3">

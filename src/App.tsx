@@ -49,6 +49,7 @@ import type {
   LabClass,
 } from './types';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Megaphone, ClipboardList, BookOpen, CalendarCheck2, Ticket, LayoutGrid } from 'lucide-react';
 
 function formatDateToISO(d: Date): string {
   const y = d.getFullYear();
@@ -72,6 +73,15 @@ function formatDateToDisplay(isoStr: string): string {
 }
 
 export default function App() {
+  const [showMobileSplash, setShowMobileSplash] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+  );
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    const timer = window.setTimeout(() => setShowMobileSplash(false), 1700);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   // Session State
   const [session, setSession] = useState<UserSession | null>(() => getCurrentSession());
 
@@ -343,6 +353,16 @@ export default function App() {
     }
   };
 
+  if (showMobileSplash) {
+    return (
+      <div className="mobile-splash" aria-label="Taleem-O-Hunar Society">
+        <img src="/logo.png" alt="Taleem-O-Hunar Society logo" />
+        <span>THS Tech labs LMS</span>
+        <i aria-hidden="true" />
+      </div>
+    );
+  }
+
   // 1. Not Authenticated: Show Login page
   if (!session) {
     return <Login onLoginSuccess={(sess) => setSession(sess)} />;
@@ -377,7 +397,7 @@ export default function App() {
           isNotificationsActive={studentView === 'notifications'}
           unreadNotifications={unreadNotifications}
         />
-        <main className="flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
           {!selectedClassId && studentView !== 'profile' ? (
             <CoursePicker
               classes={myClasses}
@@ -422,6 +442,7 @@ export default function App() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
+              <Megaphone className="mobile-nav-icon" aria-hidden="true" />
               Announcements
             </button>
             <button
@@ -434,6 +455,7 @@ export default function App() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
+              <ClipboardList className="mobile-nav-icon" aria-hidden="true" />
               Submission
             </button>
             <button
@@ -446,6 +468,7 @@ export default function App() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
+              <BookOpen className="mobile-nav-icon" aria-hidden="true" />
               Gradebook
             </button>
             <button
@@ -458,6 +481,7 @@ export default function App() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
+              <CalendarCheck2 className="mobile-nav-icon" aria-hidden="true" />
               Attendance
             </button>
             <button
@@ -470,6 +494,7 @@ export default function App() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
+              <Ticket className="mobile-nav-icon" aria-hidden="true" />
               Tickets
             </button>
             <button
@@ -482,6 +507,7 @@ export default function App() {
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
               }`}
             >
+              <LayoutGrid className="mobile-nav-icon" aria-hidden="true" />
               Apps
             </button>
           </div>
@@ -498,6 +524,7 @@ export default function App() {
                   classId={selectedClassId}
                   studentId={session.studentId}
                   studentName={session.name}
+                  classStudentIds={selectedClass?.studentIds || []}
                 />
               </div>
               <div className={studentView === 'assignments' ? '' : 'hidden'}>
@@ -545,7 +572,7 @@ export default function App() {
           )}
         </main>
         <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-          IT Lab Student Attendance Management System • Taleem-O-Hunar Society
+          THS Tech labs LMS • Taleem-O-Hunar Society
         </footer>
       </div>
     );
@@ -638,6 +665,7 @@ export default function App() {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
+            <Megaphone className="mobile-nav-icon" aria-hidden="true" />
             Announcements
           </button>
           <button
@@ -650,6 +678,7 @@ export default function App() {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
+            <ClipboardList className="mobile-nav-icon" aria-hidden="true" />
             Submission
           </button>
           <button
@@ -662,6 +691,7 @@ export default function App() {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
+            <BookOpen className="mobile-nav-icon" aria-hidden="true" />
             Gradebook
           </button>
           <button
@@ -674,6 +704,7 @@ export default function App() {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
+            <CalendarCheck2 className="mobile-nav-icon" aria-hidden="true" />
             Attendance
           </button>
           <button
@@ -686,6 +717,7 @@ export default function App() {
                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
+            <Ticket className="mobile-nav-icon" aria-hidden="true" />
             Tickets
             {pendingTickets > 0 && (
               <span className="min-w-[1.15rem] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] leading-4 text-center">
@@ -775,7 +807,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-        IT Lab Student Attendance Management System • Taleem-O-Hunar Society
+        THS Tech labs LMS • Taleem-O-Hunar Society
       </footer>
 
       {/* Monthly Report Register Modal */}

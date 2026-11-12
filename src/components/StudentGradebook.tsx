@@ -9,12 +9,14 @@ import {
   readGradeAssessmentsLocal,
   readGradeMarksLocal,
   readGradeSectionsLocal,
+  computeClassGradebookStats,
 } from '../services/gradebookService';
 
 interface StudentGradebookProps {
   classId: string;
   studentId: string;
   studentName: string;
+  classStudentIds: string[];
 }
 
 interface SectionView {
@@ -22,6 +24,8 @@ interface SectionView {
   assessments: {
     assessment: GradeAssessment;
     marks: number | null;
+    highestMarks: number | null;
+    classAverageMarks: number | null;
   }[];
   obtained: number;
   total: number;
@@ -31,15 +35,20 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
   classId,
   studentId,
   studentName,
+  classStudentIds,
 }) => {
-  const initialSections = readGradeSectionsLocal();
+  const initialSections = readGradeSectionsLocal().filter((section) => section.classId === classId);
+  const initialSectionIds = new Set(initialSections.map((section) => section.id));
+  const initialAssessments = readGradeAssessmentsLocal().filter((assessment) =>
+    initialSectionIds.has(assessment.sectionId)
+  );
   const [sections, setSections] = useState<GradeSection[]>(() => initialSections);
-  const [assessments, setAssessments] = useState<GradeAssessment[]>(() => readGradeAssessmentsLocal());
+  const [assessments, setAssessments] = useState<GradeAssessment[]>(() => initialAssessments);
   const [marks, setMarks] = useState<GradeMark[]>(() => readGradeMarksLocal());
   const [isLoading, setIsLoading] = useState(
     () =>
       initialSections.length === 0 &&
-      readGradeAssessmentsLocal().length === 0 &&
+      initialAssessments.length === 0 &&
       readGradeMarksLocal().length === 0
   );
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
@@ -73,7 +82,7 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
         setMarks(markList);
 
         const initial: Record<string, boolean> = {};
-        sectionList.forEach((s) => {
+        classSections.forEach((s) => {
           initial[s.id] = true;
         });
         setExpanded(initial);
@@ -100,6 +109,22 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
     return map;
   }, [marks, studentId]);
 
+  const classMemberIds = useMemo(
+    () => Array.from(new Set([...classStudentIds, studentId])),
+    [classStudentIds, studentId]
+  );
+
+  const courseStats = useMemo(
+    () => computeClassGradebookStats(classMemberIds, assessments, marks),
+    [classMemberIds, assessments, marks]
+  );
+  const hasClassMarks = useMemo(() => {
+    const assessmentIds = new Set(assessments.map((assessment) => assessment.id));
+    return marks.some(
+      (mark) => classMemberIds.includes(mark.studentId) && assessmentIds.has(mark.assessmentId)
+    );
+  }, [assessments, classMemberIds, marks]);
+
   const sectionViews: SectionView[] = useMemo(() => {
     return sections
       .map((section) => {
@@ -107,9 +132,18 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
         const rows = sectionAssessments.map((assessment) => {
           const key = markKey(assessment.id, studentId);
           const value = marksMap[key];
+          const classMarks = marks.filter(
+            (mark) => mark.assessmentId === assessment.id && classMemberIds.includes(mark.studentId)
+          );
           return {
             assessment,
             marks: typeof value === 'number' ? value : null,
+            highestMarks:
+              classMarks.length > 0 ? Math.max(...classMarks.map((mark) => mark.marks)) : null,
+            classAverageMarks:
+              classMarks.length > 0 && classMemberIds.length > 0
+                ? classMarks.reduce((sum, mark) => sum + mark.marks, 0) / classMemberIds.length
+                : null,
           };
         });
         const obtained = rows.reduce((sum, row) => sum + (row.marks ?? 0), 0);
@@ -117,7 +151,15 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
         return { section, assessments: rows, obtained, total };
       })
       .filter((view) => view.assessments.length > 0);
-  }, [sections, assessments, marksMap, studentId]);
+  }, [sections, assessments, marks, marksMap, studentId, classMemberIds]);
+
+  const courseTotals = useMemo(
+    () => sectionViews.reduce(
+      (totals, view) => ({ obtained: totals.obtained + view.obtained, total: totals.total + view.total }),
+      { obtained: 0, total: 0 }
+    ),
+    [sectionViews]
+  );
 
   const toggle = (sectionId: string) => {
     setExpanded((prev) => ({ ...prev, [sectionId]: !prev[sectionId] }));
@@ -137,9 +179,26 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
       <div>
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">Gradebook</h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Marks for {studentName}, grouped by section.
+          Marks for {studentName}. Class results are shown without student names.
         </p>
       </div>
+
+      {assessments.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:max-w-xl">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Your total</p>
+            <p className="mt-1 text-lg font-bold text-slate-900">
+              {courseTotals.obtained} <span className="text-sm font-medium text-slate-400">/ {courseTotals.total}</span>
+            </p>
+          </div>
+          <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-xs">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">Class average</p>
+            <p className="mt-1 text-lg font-bold text-emerald-900">
+              {hasClassMarks ? `${courseStats.classAveragePercent.toFixed(1)}%` : '—'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {sectionViews.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center">
@@ -181,29 +240,66 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
                 </button>
 
                 {isOpen && (
-                  <div className="border-t border-slate-100 px-4 py-2">
-                    {view.assessments.map((row) => (
-                      <div
-                        key={row.assessment.id}
-                        className="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-b-0"
-                      >
-                        <span className="text-xs font-medium text-slate-600">
-                          {row.assessment.name}
-                        </span>
-                        <span className="text-xs font-semibold text-slate-900">
-                          {row.marks === null ? (
-                            <span className="text-slate-400 font-medium">Not marked</span>
-                          ) : (
-                            <>
-                              {row.marks}
-                              <span className="text-slate-400 font-medium">
-                                /{row.assessment.totalMarks}
-                              </span>
-                            </>
-                          )}
-                        </span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto border-t border-slate-100 px-4 py-2">
+                    <table className="w-full min-w-[620px] text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                          <th className="py-2 pr-3">Category</th>
+                          <th className="py-2 pr-3">Assessment</th>
+                          <th className="py-2 px-2 text-right">Your marks</th>
+                          <th className="py-2 px-2 text-right">Highest</th>
+                          <th className="py-2 pl-2 text-right">Class avg.</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {view.assessments.map((row) => (
+                          <tr key={row.assessment.id} className="border-b border-slate-50 last:border-b-0">
+                            <td className="py-2.5 pr-3 font-medium text-slate-600">
+                              {view.section.name}
+                            </td>
+                            <td className="py-2.5 pr-3 font-medium text-slate-700">
+                              {row.assessment.name}
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-semibold text-slate-900">
+                              {row.marks === null ? (
+                                <span className="text-slate-400 font-medium">—</span>
+                              ) : (
+                                <>
+                                  {row.marks}
+                                  <span className="text-slate-400 font-medium">
+                                    {' '}/ {row.assessment.totalMarks}
+                                  </span>
+                                </>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-2 text-right font-semibold text-indigo-700">
+                              {row.highestMarks === null ? (
+                                '—'
+                              ) : (
+                                <>
+                                  {row.highestMarks}
+                                  <span className="text-slate-400 font-medium">
+                                    {' '}/ {row.assessment.totalMarks}
+                                  </span>
+                                </>
+                              )}
+                            </td>
+                            <td className="py-2.5 pl-2 text-right font-medium text-slate-700">
+                              {row.classAverageMarks === null ? (
+                                '—'
+                              ) : (
+                                <>
+                                  {row.classAverageMarks.toFixed(1)}
+                                  <span className="text-slate-400">
+                                    {' '}/ {row.assessment.totalMarks}
+                                  </span>
+                                </>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>

@@ -148,3 +148,185 @@
     animation: none !important;
   }
 }
+
+@keyframes mobile-splash-in {
+  from { opacity: 0; transform: scale(.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.mobile-splash { display: none; }
+.mobile-nav-icon { display: none; }
+
+.course-picker-grid {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 320px));
+  justify-content: start;
+}
+
+@media (max-width: 767px) {
+  .course-picker-grid { grid-template-columns: minmax(0, 1fr); }
+  html, body, #root { min-height: 100%; }
+  body { background: #f1f5f9; }
+
+  .mobile-splash {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background: linear-gradient(160deg, #fff 15%, #f0fdf4 100%);
+    color: #14532d;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    animation: mobile-splash-in .35s ease-out both;
+  }
+  .mobile-splash img {
+    width: min(58vw, 240px);
+    aspect-ratio: 1;
+    object-fit: contain;
+    filter: drop-shadow(0 12px 22px rgb(20 83 45 / 12%));
+  }
+  .mobile-splash i {
+    width: 34px;
+    height: 3px;
+    border-radius: 99px;
+    background: #16a34a;
+    animation: splash-progress .9s ease-in-out infinite alternate;
+  }
+  @keyframes splash-progress { to { width: 58px; opacity: .55; } }
+
+  #app-header { position: sticky; top: 0; }
+  #app-header > div { height: 58px; padding-left: 12px; padding-right: 10px; gap: 6px; }
+  #app-header #btn-go-home, #app-header > div > div:first-child { gap: 7px; min-width: 0; }
+  #app-header .header-brand-copy { min-width: 0; }
+  #app-header .header-brand-copy h1 { max-width: 42vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+  #app-header .header-brand-copy p { display: none; }
+  #app-header img { border-radius: 50%; }
+  #app-header #user-profile-menu { flex: 0 0 auto; padding: 2px; }
+  #app-header:has(#user-profile-menu) #btn-logout { display: none; }
+  #app-header .mobile-account-actions { position: absolute; top: 51px; right: 12px; z-index: 50; }
+  #app-header .mobile-account-actions button { display: inline-flex; align-items: center; gap: 8px; padding: 11px 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: white; color: #334155; box-shadow: 0 10px 30px rgb(15 23 42 / 16%); font-size: 13px; font-weight: 600; }
+
+  #student-workspace-tabs,
+  #teacher-workspace-tabs {
+    position: fixed;
+    z-index: 40;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 7px 5px calc(7px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid rgb(226 232 240 / 90%);
+    border-radius: 18px 18px 0 0;
+    background: rgb(255 255 255 / 96%);
+    box-shadow: 0 -8px 28px rgb(15 23 42 / 9%);
+    backdrop-filter: blur(18px);
+  }
+  #student-workspace-tabs button,
+  #teacher-workspace-tabs button {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 7px 2px 5px;
+    border-radius: 12px;
+    background: transparent;
+    color: #64748b;
+    font-size: 0;
+    line-height: 1.1;
+    white-space: normal;
+    transition: color .2s ease, background-color .2s ease, transform .2s ease;
+  }
+  #student-workspace-tabs .mobile-nav-icon,
+  #teacher-workspace-tabs .mobile-nav-icon { display: block; width: 21px; height: 21px; stroke-width: 1.9; }
+  #student-workspace-tabs button[aria-current="page"],
+  #teacher-workspace-tabs button[aria-current="page"] { color: #047857; }
+  #student-workspace-tabs button.bg-emerald-600,
+  #teacher-workspace-tabs button.bg-emerald-600 {
+    background: #ecfdf5;
+    color: #047857;
+    box-shadow: inset 0 -2px #10b981;
+    animation: nav-pop .22s ease-out both;
+  }
+  @keyframes nav-pop { from { transform: translateY(4px); } to { transform: translateY(0); } }
+
+  #root > div.min-h-screen main { padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
+  #root > div.min-h-screen > footer { display: none; }
+  #student-workspace-tabs ~ *, #teacher-workspace-tabs ~ * { min-width: 0; }
+
+  .overflow-x-auto { -webkit-overflow-scrolling: touch; }
+  input, select, textarea, button { touch-action: manipulation; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-splash, #student-workspace-tabs button, #teacher-workspace-tabs button { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 767px) {
+  #login-page-container {
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: max(30px, env(safe-area-inset-top)) 24px max(30px, env(safe-area-inset-bottom));
+    background: linear-gradient(155deg, #f0fdf4 0%, #ffffff 38%, #f8fafc 100%);
+  }
+  .login-panel { max-width: 430px; margin: auto; }
+  .login-glass-card {
+    padding: 8px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+  .login-brand { margin-bottom: 34px; }
+  .login-brand > div {
+    width: 104px;
+    height: 104px;
+    margin-bottom: 20px;
+    border-color: rgb(16 185 129 / 18%);
+    background: white;
+    box-shadow: 0 12px 30px rgb(6 78 59 / 10%);
+  }
+  .login-brand h1 { font-size: 23px; letter-spacing: -.035em; }
+  .login-brand p { margin-top: 5px; font-size: 12px; color: #64748b; }
+  #login-page-container form { gap: 14px; }
+  #login-page-container form input {
+    min-height: 54px;
+    border-radius: 16px;
+    border-color: #dbe5e1;
+    background: rgb(255 255 255 / 88%);
+    font-size: 15px;
+  }
+  #btn-login-submit {
+    min-height: 54px;
+    margin-top: 7px;
+    border-radius: 16px;
+    box-shadow: 0 8px 18px rgb(6 78 59 / 18%);
+  }
+  .login-glass-card > p:last-child {
+    max-width: 300px;
+    margin: 22px auto 0;
+    color: #64748b;
+  }
+  .login-float-icon { opacity: .09; }
+}
+
+@media (max-width: 767px) and (max-height: 700px) {
+  #login-page-container { padding-top: max(18px, env(safe-area-inset-top)); }
+  .login-brand { margin-bottom: 22px; }
+  .login-brand > div { width: 78px; height: 78px; margin-bottom: 12px; }
+}

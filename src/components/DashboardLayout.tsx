@@ -42,7 +42,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
 }) => {
   const maxWidthClass = contentMaxWidth === '3xl' ? 'max-w-3xl' : 'max-w-7xl';
-
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col antialiased">
       <Header
@@ -73,7 +72,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-4 text-center text-xs text-slate-400">
-        IT Lab Student Attendance Management System • Taleem-O-Hunar Society
+        THS Tech labs LMS • Taleem-O-Hunar Society
       </footer>
     </div>
   );

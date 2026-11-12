@@ -450,7 +450,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             type="button"
             onClick={() => setViewMode('overview')}
             title="Go to home"
-            className="flex items-center gap-3 rounded-lg px-1 py-1 -ml-1 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 -ml-1 hover:bg-slate-50 transition-colors cursor-pointer text-left"
           >
             <div className="w-9 h-9 rounded-lg border border-slate-200 p-1 bg-white shadow-xs flex items-center justify-center shrink-0">
               <img
@@ -463,21 +463,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 }}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight flex items-center gap-2">
-                <span>IT Lab Attendance</span>
-                <span className="text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
+                <span className="min-w-0 truncate">THS Tech labs LMS</span>
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
                   Admin
                 </span>
               </h1>
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="truncate whitespace-nowrap text-[11px] text-slate-400 font-medium">
                 Taleem-O-Hunar Society
               </p>
             </div>
           </button>
 
           {/* Right: Today Date, Profile, Logout */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex shrink-0 items-center gap-3 sm:gap-4">
             <span className="text-xs text-slate-500 font-medium hidden md:inline">
               {todayDisplay}
             </span>
@@ -514,7 +514,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </header>
 
       {/* Main Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* VIEW 1: OVERVIEW WITH TWO MAIN CARDS */}
         {viewMode === 'overview' && (
           <div className="space-y-6 animate-in fade-in duration-150">

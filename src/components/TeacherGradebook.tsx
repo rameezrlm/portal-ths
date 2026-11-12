@@ -887,25 +887,30 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
                           const error = cellError(assessment, student.id);
                           return (
                             <td key={assessment.id} className="py-1.5 px-2 border-l border-slate-50">
-                              <input
-                                id={`mark-${assessment.id}-${student.id}`}
-                                type="number"
-                                min={0}
-                                max={assessment.totalMarks}
-                                step="any"
-                                inputMode="decimal"
-                                placeholder="—"
-                                value={draftMarks[key] ?? ''}
-                                onChange={(e) =>
-                                  handleMarkChange(assessment.id, student.id, e.target.value)
-                                }
-                                className={`w-full min-w-[72px] px-2 py-1.5 text-center rounded-md border text-xs text-slate-900 focus:outline-none focus:ring-2 ${
-                                  error
-                                    ? 'border-red-300 bg-red-50 focus:ring-red-400'
-                                    : 'border-slate-200 bg-slate-50 focus:bg-white focus:ring-indigo-500'
-                                }`}
-                                title={error || `${student.name} · ${assessment.name}`}
-                              />
+                              <div className="flex min-w-[104px] items-center gap-1.5">
+                                <input
+                                  id={`mark-${assessment.id}-${student.id}`}
+                                  type="number"
+                                  min={0}
+                                  max={assessment.totalMarks}
+                                  step="any"
+                                  inputMode="decimal"
+                                  placeholder="—"
+                                  value={draftMarks[key] ?? ''}
+                                  onChange={(e) =>
+                                    handleMarkChange(assessment.id, student.id, e.target.value)
+                                  }
+                                  className={`w-full min-w-[56px] px-2 py-1.5 text-center rounded-md border text-xs text-slate-900 focus:outline-none focus:ring-2 ${
+                                    error
+                                      ? 'border-red-300 bg-red-50 focus:ring-red-400'
+                                      : 'border-slate-200 bg-slate-50 focus:bg-white focus:ring-indigo-500'
+                                  }`}
+                                  title={error || `${student.name} · ${assessment.name}`}
+                                />
+                                <span className="shrink-0 text-[10px] font-medium text-slate-400">
+                                  / {assessment.totalMarks}
+                                </span>
+                              </div>
                             </td>
                           );
                         })}

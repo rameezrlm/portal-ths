@@ -89,9 +89,9 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       </div>
 
       {/* Glass login card */}
-      <div className="relative z-10 w-full max-w-[380px]">
+      <div className="login-panel relative z-10 w-full max-w-[380px]">
         <div className="login-glass-card rounded-3xl border border-white/70 bg-white/55 p-7 sm:p-8 shadow-[0_8px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-          <div className="text-center mb-7">
+          <div className="login-brand text-center mb-7">
             <div className="w-[84px] h-[84px] rounded-full border border-emerald-100 bg-white/80 shadow-sm mx-auto mb-4 flex items-center justify-center overflow-hidden p-2">
               <img
                 src="/ths-logo.png"
@@ -109,7 +109,7 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               />
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              IT Lab Attendance
+              THS Tech labs LMS
             </h1>
             <p className="text-xs text-slate-500 mt-1 font-medium">
               Taleem-O-Hunar Society

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Bell, LogOut } from 'lucide-react';
 import type { UserSession } from '../types';
 
@@ -28,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const displayName = session.name || session.email;
   const initial = (displayName.charAt(0) || 'U').toUpperCase();
+  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
 
   return (
     <header id="app-header" className="bg-white border-b border-slate-200 sticky top-0 z-30">
@@ -39,7 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={onGoHome}
             title="Go to home"
-            className="flex items-center gap-3 rounded-lg px-1 py-1 -ml-1 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 -ml-1 hover:bg-slate-50 transition-colors cursor-pointer text-left"
           >
             <div className="w-9 h-9 rounded-lg border border-slate-200 p-1 bg-white shadow-xs flex items-center justify-center shrink-0">
               <img
@@ -52,17 +53,17 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
               />
             </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                IT Lab Attendance
+            <div className="header-brand-copy min-w-0">
+              <h1 className="truncate text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                THS Tech labs LMS
               </h1>
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="truncate whitespace-nowrap text-[11px] text-slate-400 font-medium">
                 Taleem-O-Hunar Society
               </p>
             </div>
           </button>
         ) : (
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="w-9 h-9 rounded-lg border border-slate-200 p-1 bg-white shadow-xs flex items-center justify-center shrink-0">
               <img
                 src="/logo.png"
@@ -74,11 +75,11 @@ export const Header: React.FC<HeaderProps> = ({
                 }}
               />
             </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                IT Lab Attendance
+            <div className="header-brand-copy min-w-0">
+              <h1 className="truncate text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                THS Tech labs LMS
               </h1>
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="truncate whitespace-nowrap text-[11px] text-slate-400 font-medium">
                 Taleem-O-Hunar Society
               </p>
             </div>
@@ -86,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Right: Date, Profile Avatar, Logout */}
-        <div className="flex items-center gap-2.5 sm:gap-4">
+        <div className="flex shrink-0 items-center gap-2.5 sm:gap-4">
           {/* Today Date */}
           <span className="text-xs text-slate-500 font-medium hidden md:inline">
             {todayDisplay}
@@ -120,8 +121,14 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               id="user-profile-menu"
               type="button"
-              onClick={onOpenProfile}
-              title="Open profile"
+              onClick={() => {
+                if (window.matchMedia('(max-width: 767px)').matches) {
+                  setMobileAccountOpen((open) => !open);
+                } else {
+                  onOpenProfile();
+                }
+              }}
+              title={mobileAccountOpen ? 'Close account actions' : 'Account actions'}
               aria-pressed={isProfileActive}
               className={`flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg transition-colors cursor-pointer ${
                 isProfileActive
@@ -165,11 +172,19 @@ export const Header: React.FC<HeaderProps> = ({
             id="btn-logout"
             type="button"
             onClick={onLogout}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+            className={`p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer${mobileAccountOpen ? ' mobile-account-logout' : ''}`}
             title="Sign out"
           >
             <LogOut className="w-4 h-4" />
           </button>
+          {mobileAccountOpen && onOpenProfile && (
+            <div className="mobile-account-actions">
+              <button type="button" onClick={onLogout}>
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
