@@ -216,19 +216,21 @@
     z-index: 40;
     left: 0;
     right: 0;
-    bottom: 0;
-    width: 100%;
+    bottom: calc(0px - env(safe-area-inset-bottom, 0px) - 1px);
+    width: 100vw;
+    box-sizing: border-box;
     display: flex;
     flex-wrap: nowrap;
     justify-content: space-around;
     gap: 2px;
-    padding: 7px 5px calc(7px + env(safe-area-inset-bottom));
+    padding: 7px 5px calc(14px + env(safe-area-inset-bottom, 0px));
     border: 0;
     border-top: 1px solid rgb(226 232 240 / 90%);
     border-radius: 18px 18px 0 0;
     background: rgb(255 255 255 / 96%);
     box-shadow: 0 -8px 28px rgb(15 23 42 / 9%);
     backdrop-filter: blur(18px);
+    transform: translate3d(0, 0, 0);
   }
   #student-workspace-tabs button,
   #teacher-workspace-tabs button {
@@ -250,15 +252,51 @@
     transition: color .2s ease, background-color .2s ease, transform .2s ease;
   }
   #student-workspace-tabs .mobile-nav-icon,
-  #teacher-workspace-tabs .mobile-nav-icon { display: block; width: 21px; height: 21px; stroke-width: 1.9; }
+  #teacher-workspace-tabs .mobile-nav-icon {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 21px;
+    height: 21px;
+    stroke-width: 1.9;
+    transition: transform .28s cubic-bezier(.2, 1.6, .4, 1);
+  }
   #student-workspace-tabs button[aria-current="page"],
   #teacher-workspace-tabs button[aria-current="page"] { color: #047857; }
   #student-workspace-tabs button.bg-emerald-600,
   #teacher-workspace-tabs button.bg-emerald-600 {
-    background: #ecfdf5;
+    overflow: hidden;
+    isolation: isolate;
+    background: transparent;
     color: #047857;
-    box-shadow: inset 0 -2px #10b981;
-    animation: nav-pop .22s ease-out both;
+    box-shadow: none;
+  }
+  #student-workspace-tabs button.bg-emerald-600::before,
+  #teacher-workspace-tabs button.bg-emerald-600::before {
+    content: '';
+    position: absolute;
+    z-index: 0;
+    width: 38px;
+    height: 34px;
+    left: 50%;
+    top: 50%;
+    border-radius: 58% 42% 48% 52% / 44% 56% 44% 56%;
+    background: radial-gradient(circle at 35% 28%, #ffffff 0 6%, #dcfce7 20%, #a7f3d0 72%, #6ee7b7 100%);
+    box-shadow: 0 2px 8px rgb(16 185 129 / 20%);
+    transform: translate(-50%, -50%) scale(.65);
+    animation: nav-liquid-in .42s cubic-bezier(.2, 1.55, .4, 1) forwards,
+      nav-liquid-morph 3.2s ease-in-out .42s infinite alternate;
+  }
+  #student-workspace-tabs button.bg-emerald-600 .mobile-nav-icon,
+  #teacher-workspace-tabs button.bg-emerald-600 .mobile-nav-icon {
+    transform: scale(1.08);
+  }
+  @keyframes nav-liquid-in {
+    to { transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes nav-liquid-morph {
+    from { border-radius: 58% 42% 48% 52% / 44% 56% 44% 56%; }
+    to { border-radius: 42% 58% 55% 45% / 56% 44% 56% 44%; }
   }
   @keyframes nav-pop { from { transform: translateY(4px); } to { transform: translateY(0); } }
 
@@ -271,7 +309,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .mobile-splash, #student-workspace-tabs button, #teacher-workspace-tabs button { animation: none !important; transition: none !important; }
+  .mobile-splash, #student-workspace-tabs button, #teacher-workspace-tabs button,
+  #student-workspace-tabs button::before, #teacher-workspace-tabs button::before {
+    animation: none !important;
+    transition: none !important;
+    transform: translate(-50%, -50%) scale(1) !important;
+  }
 }
 
 @media (max-width: 767px) {

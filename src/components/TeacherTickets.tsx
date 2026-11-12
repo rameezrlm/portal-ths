@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Ticket as TicketIcon } from 'lucide-react';
+import { ArrowRight, Ticket as TicketIcon, Trash2 } from 'lucide-react';
 import type { Ticket, TicketStatus, UserSession } from '../types';
 import {
   advanceTicketStatus,
+  deleteTicket,
   fetchTickets,
   formatTicketTime,
   nextTicketActionLabel,
@@ -50,6 +51,7 @@ export const TeacherTickets: React.FC<TeacherTicketsProps> = ({
   const [filter, setFilter] = useState<TicketFilter>('open');
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadTickets = async (silent = false) => {
     if (!silent) setIsLoading(true);
@@ -92,6 +94,29 @@ export const TeacherTickets: React.FC<TeacherTicketsProps> = ({
       showToast('error', 'Failed to update ticket.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async (ticket: Ticket) => {
+    const shouldDelete = window.confirm(
+      `Delete “${ticket.subject}”? This will permanently remove the ticket for the student too.`
+    );
+    if (!shouldDelete) return;
+
+    try {
+      setDeletingId(ticket.id);
+      await deleteTicket(ticket.id);
+      setTickets((prev) => {
+        const next = prev.filter((item) => item.id !== ticket.id);
+        onStatsChange?.(pendingTicketCount(next));
+        return next;
+      });
+      showToast('success', 'Ticket deleted.');
+    } catch (err) {
+      console.error(err);
+      showToast('error', err instanceof Error ? err.message : 'Failed to delete ticket.');
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -174,6 +199,20 @@ export const TeacherTickets: React.FC<TeacherTicketsProps> = ({
                         Posted {formatTicketTime(ticket.createdAt)}
                       </p>
                     </div>
+                    <button
+                      type="button"
+                      disabled={deletingId === ticket.id || updatingId === ticket.id}
+                      onClick={() => void handleDelete(ticket)}
+                      aria-label={`Delete ticket: ${ticket.subject}`}
+                      title="Delete ticket"
+                      className="shrink-0 inline-flex items-center justify-center rounded-lg border border-red-200 bg-white p-2 text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === ticket.id ? (
+                        <span className="text-[10px] font-semibold">…</span>
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </button>
                   </div>
 
                   <TicketProgress status={ticket.status} />

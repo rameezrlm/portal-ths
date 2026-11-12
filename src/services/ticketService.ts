@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/firebaseConfig';
 import type { Ticket, TicketStatus } from '../types';
 import { withFirestoreTimeout } from '../utils/firestoreTimeout';
@@ -287,6 +287,19 @@ export async function advanceTicketStatus(
   writeTickets(list, true);
   await persistTicket(updated);
   return updated;
+}
+
+export async function deleteTicket(ticketId: string): Promise<void> {
+  if (isFirebaseConfigured && db) {
+    try {
+      await withFirestoreTimeout(deleteDoc(doc(db, 'tickets', ticketId)), 10000);
+    } catch (err) {
+      console.error(`Error deleting ticket ${ticketId} from Firestore:`, err);
+      throw new Error('Could not delete ticket. Please try again.');
+    }
+  }
+
+  writeTickets(readTickets().filter((ticket) => ticket.id !== ticketId), true);
 }
 
 export async function markStudentTicketsSeen(studentId: string): Promise<void> {
