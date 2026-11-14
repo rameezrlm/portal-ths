@@ -31,7 +31,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .student-app-launch { animation: none; transition: none; }
+  .student-app-launch, .animate-zoom-in { animation: none; transition: none; }
 }
 
 /* Login — glass card */

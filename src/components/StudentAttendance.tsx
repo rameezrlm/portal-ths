@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CalendarDays, Clock } from 'lucide-react';
-import type { AttendanceRecord, AttendanceStatus } from '../types';
+import { Clock } from 'lucide-react';
+import type { AttendanceStatus } from '../types';
 import {
   getAttendanceForStudent,
   getAttendanceForStudentLocal,
 } from '../services/attendanceService';
-import { getDaysInMonth, getMonthName } from '../services/excelService';
+import { getMonthName } from '../services/excelService';
 
 interface StudentAttendanceProps {
   classId: string;
@@ -28,48 +28,36 @@ const MONTHS = [
   { value: 12, name: 'December' },
 ];
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 const STATUS_STYLE: Record<
   AttendanceStatus,
-  { label: string; code: string; cell: string; badge: string }
+  { label: string; code: string; badge: string }
 > = {
   present: {
     label: 'Present',
     code: 'P',
-    cell: 'bg-green-100 text-green-800 border-green-200',
     badge: 'bg-green-50 text-green-700 border-green-200',
   },
   absent: {
     label: 'Absent',
     code: 'A',
-    cell: 'bg-red-100 text-red-800 border-red-200',
     badge: 'bg-red-50 text-red-700 border-red-200',
   },
   late: {
     label: 'Late',
     code: 'L',
-    cell: 'bg-amber-100 text-amber-800 border-amber-200',
     badge: 'bg-amber-50 text-amber-700 border-amber-200',
   },
   early_left: {
     label: 'Early Left',
     code: 'EL',
-    cell: 'bg-teal-100 text-teal-800 border-teal-200',
     badge: 'bg-teal-50 text-teal-700 border-teal-200',
   },
   leave: {
     label: 'Leave',
     code: 'LV',
-    cell: 'bg-violet-100 text-violet-800 border-violet-200',
     badge: 'bg-violet-50 text-violet-700 border-violet-200',
   },
 };
-
-function mondayOffset(year: number, month: number): number {
-  const sundayIndex = new Date(year, month - 1, 1).getDay();
-  return (sundayIndex + 6) % 7;
-}
 
 function formatJoinTime(iso?: string): string {
   if (!iso) return '';
@@ -137,23 +125,12 @@ export const StudentAttendance: React.FC<StudentAttendanceProps> = ({
   }, [studentId, classId]);
 
   const monthPrefix = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
-  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
-  const startPad = mondayOffset(selectedYear, selectedMonth);
   const availableYears = [now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1];
 
   const monthRecords = useMemo(
     () => records.filter((rec) => rec.date && rec.date.startsWith(monthPrefix)),
     [records, monthPrefix]
   );
-
-  const byDay = useMemo(() => {
-    const map: Record<number, AttendanceRecord> = {};
-    monthRecords.forEach((rec) => {
-      const day = Number(rec.date.split('-')[2]);
-      if (day) map[day] = rec;
-    });
-    return map;
-  }, [monthRecords]);
 
   const present = monthRecords.filter((r) => r.status === 'present').length;
   const absent = monthRecords.filter((r) => r.status === 'absent').length;
@@ -240,48 +217,8 @@ export const StudentAttendance: React.FC<StudentAttendanceProps> = ({
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-indigo-600" />
-          <h3 className="text-sm font-bold text-slate-900">
-            {getMonthName(selectedMonth)} {selectedYear}
-          </h3>
-        </div>
-        <div className="p-4">
-          <div className="grid grid-cols-7 gap-1.5 mb-1.5">
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="text-center text-[10px] font-semibold uppercase tracking-wide text-slate-400 py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1.5">
-            {Array.from({ length: startPad }).map((_, idx) => (
-              <div key={`pad-${idx}`} className="aspect-square" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, idx) => {
-              const day = idx + 1;
-              const rec = byDay[day];
-              const style = rec ? STATUS_STYLE[rec.status] ?? null : null;
-              return (
-                <div
-                  key={day}
-                  title={style ? `${style.label}${rec?.status === 'late' && rec.joinTime ? ` · ${formatJoinTime(rec.joinTime)}` : ''}` : 'Not marked'}
-                  className={`aspect-square rounded-lg border flex flex-col items-center justify-center ${
-                    style ? style.cell : 'bg-slate-50 border-slate-100 text-slate-400'
-                  }`}
-                >
-                  <span className="text-[11px] font-semibold leading-none">{day}</span>
-                  <span className="text-[9px] font-bold mt-0.5">{style?.code || ''}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-100">
-          <h3 className="text-sm font-bold text-slate-900">Marked days</h3>
+          <h3 className="text-sm font-bold text-slate-900">{getMonthName(selectedMonth)} {selectedYear} Attendance History</h3>
         </div>
         {monthRecords.length === 0 ? (
           <div className="px-4 py-10 text-center">

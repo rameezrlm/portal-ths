@@ -161,6 +161,7 @@ export interface Ticket {
   resolvedBy?: string;
   resolvedAt?: string;
   seenByStudent: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

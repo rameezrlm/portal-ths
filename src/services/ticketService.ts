@@ -1,4 +1,4 @@
-import { collection, getDocs, doc, setDoc, deleteDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/firebaseConfig';
 import type { Ticket, TicketStatus } from '../types';
 import { withFirestoreTimeout } from '../utils/firestoreTimeout';
@@ -62,6 +62,8 @@ function mergeTickets(remote: Ticket[], local: Ticket[]): Ticket[] {
   }
   for (const ticket of local) {
     const existing = map.get(ticket.id);
+    // A Firestore tombstone always wins over older copies in another browser's cache.
+    if (existing?.deletedAt) continue;
     if (!existing || ticketUpdatedAt(ticket) >= ticketUpdatedAt(existing)) {
       map.set(ticket.id, ticket);
     }
@@ -134,7 +136,7 @@ export function readTicketsLocal(): Ticket[] {
     readTickets().map((ticket) => ({
       ...ticket,
       status: normalizeTicketStatus(ticket.status),
-    }))
+    })).filter((ticket) => !ticket.deletedAt)
   );
 }
 
@@ -144,7 +146,7 @@ export async function fetchTickets(): Promise<Ticket[]> {
       list.map((ticket) => ({
         ...ticket,
         status: normalizeTicketStatus(ticket.status),
-      }))
+      })).filter((ticket) => !ticket.deletedAt)
     );
 
   const local = hydrate(readTickets());
@@ -290,9 +292,24 @@ export async function advanceTicketStatus(
 }
 
 export async function deleteTicket(ticketId: string): Promise<void> {
+  const list = await fetchTickets();
+  const ticket = list.find((item) => item.id === ticketId);
+  if (!ticket) {
+    writeTickets(readTickets().filter((item) => item.id !== ticketId), true);
+    return;
+  }
+
   if (isFirebaseConfigured && db) {
     try {
-      await withFirestoreTimeout(deleteDoc(doc(db, 'tickets', ticketId)), 10000);
+      const deletedAt = new Date().toISOString();
+      await withFirestoreTimeout(
+        setDoc(
+          doc(db, 'tickets', ticketId),
+          { ...toFirestorePayload(ticket), deletedAt, updatedAt: deletedAt },
+          { merge: true }
+        ),
+        10000
+      );
     } catch (err) {
       console.error(`Error deleting ticket ${ticketId} from Firestore:`, err);
       throw new Error('Could not delete ticket. Please try again.');

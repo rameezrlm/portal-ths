@@ -25,6 +25,10 @@ function getLocalTeachers(): Teacher[] {
   }
 }
 
+export function readTeachersLocal(): Teacher[] {
+  return getLocalTeachers();
+}
+
 function saveLocalTeachers(teachers: Teacher[]) {
   try {
     localStorage.setItem(TEACHERS_STORAGE_KEY, JSON.stringify(teachers));

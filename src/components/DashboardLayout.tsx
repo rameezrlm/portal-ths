@@ -15,9 +15,6 @@ interface DashboardLayoutProps {
   tabsId?: string;
   onOpenProfile?: () => void;
   isProfileActive?: boolean;
-  onOpenNotifications?: () => void;
-  isNotificationsActive?: boolean;
-  notificationCount?: number;
   roleLabel?: string;
   contentMaxWidth?: '3xl' | '7xl';
   children: React.ReactNode;
@@ -34,9 +31,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   tabsId,
   onOpenProfile,
   isProfileActive,
-  onOpenNotifications,
-  isNotificationsActive,
-  notificationCount = 0,
   roleLabel,
   contentMaxWidth = '7xl',
   children,
@@ -50,9 +44,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         todayDisplay={todayDisplay}
         onOpenProfile={onOpenProfile}
         isProfileActive={isProfileActive}
-        onOpenNotifications={onOpenNotifications}
-        isNotificationsActive={isNotificationsActive}
-        notificationCount={notificationCount}
         roleLabel={roleLabel}
       />
 

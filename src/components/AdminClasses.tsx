@@ -7,6 +7,7 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
+  Search,
 } from 'lucide-react';
 import type { LabClass, Student, Teacher } from '../types';
 import {
@@ -38,6 +39,7 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
   const [description, setDescription] = useState('');
   const [selectedTeachers, setSelectedTeachers] = useState<string[]>([]);
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [studentSearch, setStudentSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<LabClass | null>(null);
 
@@ -67,6 +69,7 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
     setDescription('');
     setSelectedTeachers([]);
     setSelectedStudents([]);
+    setStudentSearch('');
     setError(null);
     setModalOpen(true);
   };
@@ -77,6 +80,7 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
     setDescription(item.description || '');
     setSelectedTeachers([...item.teacherIds]);
     setSelectedStudents([...item.studentIds]);
+    setStudentSearch('');
     setError(null);
     setModalOpen(true);
   };
@@ -136,6 +140,11 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
       showToast('error', 'Failed to delete class.');
     }
   };
+
+  const normalizedStudentSearch = studentSearch.trim().toLowerCase();
+  const filteredStudents = students.filter((student) =>
+    `${student.name} ${student.email} ${student.contact || ''}`.toLowerCase().includes(normalizedStudentSearch)
+  );
 
   return (
     <div id="admin-classes" className="space-y-6">
@@ -215,25 +224,28 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
       )}
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-900">
-                {editing ? 'Edit Section' : 'New Section'}
-              </h3>
-              <button type="button" onClick={() => setModalOpen(false)} className="p-1 text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-3 sm:p-6">
+          <div className="flex h-[min(92vh,860px)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {editing ? 'Edit Section' : 'New Section'}
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">Set up the course and enroll its teachers and students.</p>
+              </div>
+              <button type="button" onClick={() => setModalOpen(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {error && (
-              <div className="mb-3 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+              <div className="mx-6 mt-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="min-h-0 flex-1 space-y-5 overflow-y-auto p-6">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Section Name</label>
                 <input
@@ -258,7 +270,7 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-2">Assign Teachers</label>
-                <div className="max-h-32 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+                <div className="max-h-48 overflow-y-auto rounded-xl border border-slate-200 p-2 space-y-1">
                   {teachers.length === 0 ? (
                     <p className="text-xs text-slate-400 p-2">No teachers registered.</p>
                   ) : (
@@ -281,25 +293,47 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-2">Assign Students</label>
-                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 space-y-1">
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <label htmlFor="student-enrollment-search" className="block text-xs font-semibold text-slate-700">Assign Students</label>
+                  <span className="text-[11px] font-medium text-slate-500">{selectedStudents.length} selected</span>
+                </div>
+                <div className="relative mb-3">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  <input
+                    id="student-enrollment-search"
+                    type="search"
+                    value={studentSearch}
+                    onChange={(event) => setStudentSearch(event.target.value)}
+                    placeholder="Search by student name, email, or contact…"
+                    className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-4 text-sm outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 p-2">
                   {students.length === 0 ? (
-                    <p className="text-xs text-slate-400 p-2">No students enrolled.</p>
+                    <p className="p-6 text-center text-sm text-slate-400">No students registered yet.</p>
+                  ) : filteredStudents.length === 0 ? (
+                    <p className="p-6 text-center text-sm text-slate-500">No students match “{studentSearch}”.</p>
                   ) : (
-                    students.map((student) => (
-                      <label
-                        key={student.id}
-                        className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer text-xs"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedStudents.includes(student.id)}
-                          onChange={() => toggleStudent(student.id)}
-                        />
-                        <span className="font-medium text-slate-800">{student.name}</span>
-                        <span className="text-slate-400">{student.email}</span>
-                      </label>
-                    ))
+                    <div className="grid gap-1 md:grid-cols-2">
+                      {filteredStudents.map((student) => (
+                        <label
+                          key={student.id}
+                          className={`flex min-w-0 items-start gap-3 rounded-lg border px-3 py-3 text-xs cursor-pointer ${selectedStudents.includes(student.id) ? 'border-emerald-200 bg-emerald-50/70' : 'border-transparent hover:bg-slate-50'}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedStudents.includes(student.id)}
+                            onChange={() => toggleStudent(student.id)}
+                            className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-700"
+                          />
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold text-slate-800">{student.name}</span>
+                            <span className="mt-0.5 block truncate text-slate-500">{student.email}</span>
+                            {student.contact && <span className="mt-0.5 block truncate text-slate-400">{student.contact}</span>}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>

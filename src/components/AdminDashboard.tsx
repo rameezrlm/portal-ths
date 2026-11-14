@@ -16,7 +16,6 @@ import {
   KeyRound,
   Plus,
   X,
-  Ticket as TicketIcon,
   CalendarDays,
   BookOpen,
   AppWindow,
@@ -33,8 +32,6 @@ import {
   deleteTeacher,
   updateTeacher,
 } from '../services/teacherService';
-import { fetchTickets, pendingTicketCount } from '../services/ticketService';
-import { TeacherTickets } from './TeacherTickets';
 import { AdminAttendance } from './AdminAttendance';
 import { AdminClasses } from './AdminClasses';
 import { AdminWebApps } from './AdminWebApps';
@@ -47,7 +44,7 @@ interface AdminDashboardProps {
   todayDisplay: string;
 }
 
-type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'tickets' | 'apps';
+type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'apps';
 
 const AdminQuickTabs: React.FC<{
   viewMode: AdminViewMode;
@@ -55,15 +52,13 @@ const AdminQuickTabs: React.FC<{
   classesCount: number;
   studentsCount: number;
   teachersCount: number;
-  pendingTickets: number;
-}> = ({ viewMode, onChange, classesCount, studentsCount, teachersCount, pendingTickets }) => {
+}> = ({ viewMode, onChange, classesCount, studentsCount, teachersCount }) => {
   const tabs: { id: AdminViewMode; label: string; activeClass: string }[] = [
     { id: 'overview', label: 'Overview', activeClass: 'text-slate-800' },
     { id: 'classes', label: `Classes (${classesCount})`, activeClass: 'text-violet-700' },
     { id: 'students', label: `Students (${studentsCount})`, activeClass: 'text-indigo-700' },
     { id: 'teachers', label: `Teachers (${teachersCount})`, activeClass: 'text-emerald-700' },
     { id: 'attendance', label: 'Attendance', activeClass: 'text-sky-700' },
-    { id: 'tickets', label: `Tickets (${pendingTickets})`, activeClass: 'text-amber-700' },
     { id: 'apps', label: 'Web Apps', activeClass: 'text-emerald-700' },
   ];
 
@@ -101,7 +96,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(true);
-  const [pendingTickets, setPendingTickets] = useState(0);
   const [classesCount, setClassesCount] = useState(0);
 
   // Search states
@@ -180,13 +174,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       showToast('error', 'Failed to load teachers.');
     } finally {
       setIsLoadingTeachers(false);
-    }
-
-    try {
-      const tickets = await fetchTickets();
-      setPendingTickets(pendingTicketCount(tickets));
-    } catch (err) {
-      console.error('Failed to load tickets:', err);
     }
 
     try {
@@ -442,7 +429,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       )}
 
       {/* Top Navigation Bar */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+      <header className="sticky top-0 z-30 border-b border-emerald-900 bg-emerald-800 text-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           {/* Logo & Title */}
           <button
@@ -450,7 +437,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             type="button"
             onClick={() => setViewMode('overview')}
             title="Go to home"
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 -ml-1 hover:bg-slate-50 transition-colors cursor-pointer text-left"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 -ml-1 text-left cursor-pointer"
           >
             <div className="w-9 h-9 rounded-lg border border-slate-200 p-1 bg-white shadow-xs flex items-center justify-center shrink-0">
               <img
@@ -464,13 +451,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight flex items-center gap-2">
+              <h1 className="text-sm sm:text-base font-bold text-white leading-tight flex items-center gap-2">
                 <span className="min-w-0 truncate">THS Tech labs LMS</span>
-                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wider bg-white/15 text-white px-1.5 py-0.5 rounded border border-white/20">
                   Admin
                 </span>
               </h1>
-              <p className="truncate whitespace-nowrap text-[11px] text-slate-400 font-medium">
+              <p className="truncate whitespace-nowrap text-[11px] text-emerald-100 font-medium">
                 Taleem-O-Hunar Society
               </p>
             </div>
@@ -478,25 +465,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Right: Today Date, Profile, Logout */}
           <div className="flex shrink-0 items-center gap-3 sm:gap-4">
-            <span className="text-xs text-slate-500 font-medium hidden md:inline">
+            <span className="text-xs text-emerald-50 font-medium hidden md:inline">
               {todayDisplay}
             </span>
 
-            <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+            <div className="h-5 w-px bg-emerald-600 hidden sm:block" />
 
             {/* Admin Profile */}
             <div
               id="admin-profile-icon"
-              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg transition-colors hover:bg-emerald-700"
             >
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-white text-emerald-900 flex items-center justify-center text-xs font-bold shadow-xs">
                 {initial}
               </div>
               <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-slate-800 leading-tight">
+                <p className="text-xs font-semibold text-white leading-tight">
                   {displayName}
                 </p>
-                <p className="text-[10px] text-slate-400 font-medium">Administrator</p>
+                <p className="text-[10px] text-emerald-100 font-medium">Administrator</p>
               </div>
             </div>
 
@@ -504,7 +491,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               id="btn-admin-logout"
               type="button"
               onClick={onLogout}
-              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-emerald-100 hover:text-white hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer"
               title="Sign out"
             >
               <LogOut className="w-4 h-4" />
@@ -534,7 +521,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-classes"
                 onClick={() => setViewMode('classes')}
-                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-violet-400 transition-all cursor-pointer flex flex-col justify-between"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-violet-900/10 hover:border-violet-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                style={{ animationDelay: '0ms' }}
               >
                 <div>
                   <div className="flex items-start justify-between mb-4">
@@ -564,7 +552,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-students"
                 onClick={() => setViewMode('students')}
-                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-indigo-400 transition-all cursor-pointer flex flex-col justify-between"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-900/10 hover:border-indigo-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                style={{ animationDelay: '60ms' }}
               >
                 <div>
                   <div className="flex items-start justify-between mb-4">
@@ -594,7 +583,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-teachers"
                 onClick={() => setViewMode('teachers')}
-                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all cursor-pointer flex flex-col justify-between"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                style={{ animationDelay: '120ms' }}
               >
                 <div>
                   <div className="flex items-start justify-between mb-4">
@@ -624,7 +614,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-attendance"
                 onClick={() => setViewMode('attendance')}
-                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-sky-400 transition-all cursor-pointer flex flex-col justify-between"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-sky-900/10 hover:border-sky-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                style={{ animationDelay: '180ms' }}
               >
                 <div>
                   <div className="flex items-start justify-between mb-4">
@@ -650,41 +641,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Card 5: Tickets */}
-              <div
-                id="card-open-tickets"
-                onClick={() => setViewMode('tickets')}
-                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-amber-400 transition-all cursor-pointer flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 group-hover:bg-amber-600 group-hover:text-white transition-all shadow-xs">
-                      <TicketIcon className="w-6 h-6" />
-                    </div>
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                      {pendingTickets} Open
-                    </span>
-                  </div>
-
-                  <h3 className="text-base font-bold text-slate-900 group-hover:text-amber-600 transition-colors">
-                    Tickets
-                  </h3>
-                  <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                    Review student issues and update status. Students are notified when a ticket is approved, in progress, or resolved.
-                  </p>
-                </div>
-
-                <div className="pt-6 mt-6 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-amber-600 group-hover:text-amber-700">
-                  <span>Open Ticket Inbox</span>
-                  <ChevronRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
-                </div>
-              </div>
-
               {/* Card 6: Student Web Apps */}
               <div
                 id="card-open-student-web-apps"
                 onClick={() => setViewMode('apps')}
-                className="group bg-white rounded-2xl border border-slate-200 p-6 shadow-xs hover:shadow-md hover:border-emerald-400 transition-all cursor-pointer flex flex-col justify-between"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                style={{ animationDelay: '300ms' }}
               >
                 <div>
                   <div className="flex items-start justify-between mb-4">
@@ -738,7 +700,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 classesCount={classesCount}
                 studentsCount={students.length}
                 teachersCount={teachers.length}
-                pendingTickets={pendingTickets}
               />
             </div>
 
@@ -781,7 +742,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 classesCount={classesCount}
                 studentsCount={students.length}
                 teachersCount={teachers.length}
-                pendingTickets={pendingTickets}
               />
             </div>
 
@@ -972,7 +932,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 classesCount={classesCount}
                 studentsCount={students.length}
                 teachersCount={teachers.length}
-                pendingTickets={pendingTickets}
               />
             </div>
 
@@ -1152,7 +1111,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 classesCount={classesCount}
                 studentsCount={students.length}
                 teachersCount={teachers.length}
-                pendingTickets={pendingTickets}
               />
             </div>
 
@@ -1160,48 +1118,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               students={students}
               isLoadingStudents={isLoadingStudents}
               showToast={showToast}
-            />
-          </div>
-        )}
-
-        {/* VIEW 5: STUDENT TICKETS */}
-        {viewMode === 'tickets' && (
-          <div className="space-y-6 animate-in fade-in duration-150">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('overview')}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  <span>Back to Overview</span>
-                </button>
-
-                <div className="h-4 w-px bg-slate-200" />
-
-                <div className="flex items-center gap-1 text-xs">
-                  <span className="text-slate-400">Admin</span>
-                  <span className="text-slate-300">/</span>
-                  <span className="font-semibold text-slate-800">Tickets</span>
-                </div>
-              </div>
-
-              <AdminQuickTabs
-                viewMode={viewMode}
-                onChange={setViewMode}
-                classesCount={classesCount}
-                studentsCount={students.length}
-                teachersCount={teachers.length}
-                pendingTickets={pendingTickets}
-              />
-            </div>
-
-            <TeacherTickets
-              session={session}
-              showToast={showToast}
-              onStatsChange={setPendingTickets}
-              description="Student tickets land here. Update the status and the student is notified in their Notifications tab."
             />
           </div>
         )}
@@ -1216,7 +1132,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="h-4 w-px bg-slate-200" />
                 <div className="flex items-center gap-1 text-xs"><span className="text-slate-400">Admin</span><span className="text-slate-300">/</span><span className="font-semibold text-slate-800">Web Apps</span></div>
               </div>
-              <AdminQuickTabs viewMode={viewMode} onChange={setViewMode} classesCount={classesCount} studentsCount={students.length} teachersCount={teachers.length} pendingTickets={pendingTickets} />
+              <AdminQuickTabs viewMode={viewMode} onChange={setViewMode} classesCount={classesCount} studentsCount={students.length} teachersCount={teachers.length} />
             </div>
             <AdminWebApps showToast={showToast} />
           </div>
