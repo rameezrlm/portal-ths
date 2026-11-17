@@ -91,6 +91,8 @@ export interface GradeAssessment {
   sectionId: string;
   name: string;
   totalMarks: number;
+  /** When true, students see a Hidden label instead of marks for this assessment. */
+  hiddenFromStudents?: boolean;
   createdAt: string;
   order: number;
 }

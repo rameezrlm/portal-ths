@@ -10,6 +10,7 @@ import {
   readGradeMarksLocal,
   readGradeSectionsLocal,
   computeClassGradebookStats,
+  formatGradeMark,
 } from '../services/gradebookService';
 
 interface StudentGradebookProps {
@@ -23,6 +24,7 @@ interface SectionView {
   section: GradeSection;
   assessments: {
     assessment: GradeAssessment;
+    hidden: boolean;
     marks: number | null;
     highestMarks: number | null;
     classAverageMarks: number | null;
@@ -103,11 +105,16 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
     const map: Record<string, number> = {};
     marks.forEach((m) => {
       if (m.studentId === studentId) {
-        map[m.id] = m.marks;
+        map[markKey(m.assessmentId, m.studentId)] = m.marks;
       }
     });
     return map;
   }, [marks, studentId]);
+
+  const visibleAssessments = useMemo(
+    () => assessments.filter((assessment) => !assessment.hiddenFromStudents),
+    [assessments]
+  );
 
   const classMemberIds = useMemo(
     () => Array.from(new Set([...classStudentIds, studentId])),
@@ -115,15 +122,15 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
   );
 
   const courseStats = useMemo(
-    () => computeClassGradebookStats(classMemberIds, assessments, marks),
-    [classMemberIds, assessments, marks]
+    () => computeClassGradebookStats(classMemberIds, visibleAssessments, marks),
+    [classMemberIds, visibleAssessments, marks]
   );
   const hasClassMarks = useMemo(() => {
-    const assessmentIds = new Set(assessments.map((assessment) => assessment.id));
+    const assessmentIds = new Set(visibleAssessments.map((assessment) => assessment.id));
     return marks.some(
       (mark) => classMemberIds.includes(mark.studentId) && assessmentIds.has(mark.assessmentId)
     );
-  }, [assessments, classMemberIds, marks]);
+  }, [visibleAssessments, classMemberIds, marks]);
 
   const sectionViews: SectionView[] = useMemo(() => {
     return sections
@@ -137,17 +144,23 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
           );
           return {
             assessment,
-            marks: typeof value === 'number' ? value : null,
+            hidden: Boolean(assessment.hiddenFromStudents),
+            marks: !assessment.hiddenFromStudents && typeof value === 'number' ? value : null,
             highestMarks:
-              classMarks.length > 0 ? Math.max(...classMarks.map((mark) => mark.marks)) : null,
+              !assessment.hiddenFromStudents && classMarks.length > 0
+                ? Math.max(...classMarks.map((mark) => mark.marks))
+                : null,
             classAverageMarks:
-              classMarks.length > 0 && classMemberIds.length > 0
+              !assessment.hiddenFromStudents && classMarks.length > 0 && classMemberIds.length > 0
                 ? classMarks.reduce((sum, mark) => sum + mark.marks, 0) / classMemberIds.length
                 : null,
           };
         });
-        const obtained = rows.reduce((sum, row) => sum + (row.marks ?? 0), 0);
-        const total = rows.reduce((sum, row) => sum + row.assessment.totalMarks, 0);
+        const obtained = rows.reduce((sum, row) => sum + (!row.hidden ? row.marks ?? 0 : 0), 0);
+        const total = rows.reduce(
+          (sum, row) => sum + (!row.hidden ? row.assessment.totalMarks : 0),
+          0
+        );
         return { section, assessments: rows, obtained, total };
       })
       .filter((view) => view.assessments.length > 0);
@@ -183,12 +196,12 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
         </p>
       </div>
 
-      {assessments.length > 0 && (
+      {visibleAssessments.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:max-w-xl">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Your total</p>
             <p className="mt-1 text-lg font-bold text-slate-900">
-              {courseTotals.obtained} <span className="text-sm font-medium text-slate-400">/ {courseTotals.total}</span>
+              {formatGradeMark(courseTotals.obtained)} <span className="text-sm font-medium text-slate-400">/ {formatGradeMark(courseTotals.total)}</span>
             </p>
           </div>
           <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4 shadow-xs">
@@ -229,7 +242,9 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
                   <span className="text-sm font-bold text-slate-900">{view.section.name}</span>
                   <span className="flex items-center gap-2 shrink-0">
                     <span className="text-sm font-semibold text-slate-700">
-                      {view.obtained}/{view.total}
+                      {view.assessments.every((row) => row.hidden)
+                        ? 'Marks hidden'
+                        : `${formatGradeMark(view.obtained)}/${formatGradeMark(view.total)}`}
                     </span>
                     <ChevronDown
                       className={`w-4 h-4 text-slate-400 transition-transform ${
@@ -261,11 +276,13 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
                               {row.assessment.name}
                             </td>
                             <td className="py-2.5 px-2 text-right font-semibold text-slate-900">
-                              {row.marks === null ? (
+                              {row.hidden ? (
+                                <span className="text-slate-500 font-medium">Hidden</span>
+                              ) : row.marks === null ? (
                                 <span className="text-slate-400 font-medium">—</span>
                               ) : (
                                 <>
-                                  {row.marks}
+                                  {formatGradeMark(row.marks)}
                                   <span className="text-slate-400 font-medium">
                                     {' '}/ {row.assessment.totalMarks}
                                   </span>
@@ -273,11 +290,13 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
                               )}
                             </td>
                             <td className="py-2.5 px-2 text-right font-semibold text-indigo-700">
-                              {row.highestMarks === null ? (
+                              {row.hidden ? (
+                                <span className="text-slate-500 font-medium">Hidden</span>
+                              ) : row.highestMarks === null ? (
                                 '—'
                               ) : (
                                 <>
-                                  {row.highestMarks}
+                                  {formatGradeMark(row.highestMarks)}
                                   <span className="text-slate-400 font-medium">
                                     {' '}/ {row.assessment.totalMarks}
                                   </span>
@@ -285,7 +304,9 @@ export const StudentGradebook: React.FC<StudentGradebookProps> = ({
                               )}
                             </td>
                             <td className="py-2.5 pl-2 text-right font-medium text-slate-700">
-                              {row.classAverageMarks === null ? (
+                              {row.hidden ? (
+                                <span className="text-slate-500 font-medium">Hidden</span>
+                              ) : row.classAverageMarks === null ? (
                                 '—'
                               ) : (
                                 <>

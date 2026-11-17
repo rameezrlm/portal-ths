@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Download,
   Pencil,
+  Calculator,
 } from 'lucide-react';
 import type { GradeAssessment, GradeMark, GradeSection, Student } from '../types';
 import {
@@ -21,6 +22,7 @@ import {
   fetchGradeAssessments,
   fetchGradeMarks,
   fetchGradeSections,
+  formatGradeMark,
   formatGradePercent,
   getGradeColorScheme,
   markKey,
@@ -81,6 +83,13 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
     'name_asc' | 'name_desc' | 'percent_desc' | 'percent_asc' | 'most_missing' | 'least_missing'
   >('name_asc');
   const [isDownloadingSheet, setIsDownloadingSheet] = useState(false);
+  const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>([]);
+  const [isAverageDialogOpen, setIsAverageDialogOpen] = useState(false);
+  const [averageTargetSectionId, setAverageTargetSectionId] = useState('');
+  const [averageAssessmentName, setAverageAssessmentName] = useState('');
+  const [averageError, setAverageError] = useState<string | null>(null);
+  const [isUploadingAverage, setIsUploadingAverage] = useState(false);
+  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [sectionName, setSectionName] = useState('');
@@ -121,7 +130,7 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
         const map = marksToMap(markList);
         const asStrings: Record<string, string> = {};
         Object.entries(map).forEach(([key, value]) => {
-          asStrings[key] = String(value);
+          asStrings[key] = formatGradeMark(value);
         });
         setDraftMarks(asStrings);
         setSavedMarks(asStrings);
@@ -154,6 +163,22 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
     });
     return result;
   }, [sections, assessmentsBySection]);
+
+  const selectedAssessments = useMemo(
+    () => orderedAssessments.filter((assessment) => selectedAssessmentIds.includes(assessment.id)),
+    [orderedAssessments, selectedAssessmentIds]
+  );
+
+  const selectedAverageTotalMarks = useMemo(
+    () =>
+      selectedAssessments.length > 0
+        ? selectedAssessments.reduce((sum, assessment) => sum + assessment.totalMarks, 0) /
+          selectedAssessments.length
+        : 0,
+    [selectedAssessments]
+  );
+  const areAllSelectedHidden =
+    selectedAssessments.length > 0 && selectedAssessments.every((assessment) => assessment.hiddenFromStudents);
 
   const dirtyCount = useMemo(() => {
     const keys = new Set([...Object.keys(draftMarks), ...Object.keys(savedMarks)]);
@@ -406,6 +431,7 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
       );
       setSections((prev) => prev.filter((s) => s.id !== sectionToDelete.id));
       setAssessments((prev) => prev.filter((a) => a.sectionId !== sectionToDelete.id));
+      setSelectedAssessmentIds((prev) => prev.filter((id) => !removedIds.has(id)));
       const clearRemoved = (prev: Record<string, string>) => {
         const next = { ...prev };
         Object.keys(next).forEach((key) => {
@@ -430,6 +456,7 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
     try {
       await deleteGradeAssessment(assessmentToDelete.id);
       setAssessments((prev) => prev.filter((a) => a.id !== assessmentToDelete.id));
+      setSelectedAssessmentIds((prev) => prev.filter((id) => id !== assessmentToDelete.id));
       const prefix = `${assessmentToDelete.id}_`;
       setDraftMarks((prev) => {
         const next = { ...prev };
@@ -498,7 +525,7 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
       const map = marksToMap(updated);
       const asStrings: Record<string, string> = {};
       Object.entries(map).forEach(([key, value]) => {
-        asStrings[key] = String(value);
+        asStrings[key] = formatGradeMark(value);
       });
       setSavedMarks(asStrings);
       setDraftMarks((prev) => {
@@ -519,6 +546,155 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
       showToast('error', 'Failed to save marks.');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleAssessmentSelectionChange = (assessmentId: string, checked: boolean) => {
+    setSelectedAssessmentIds((prev) =>
+      checked
+        ? prev.includes(assessmentId) ? prev : [...prev, assessmentId]
+        : prev.filter((id) => id !== assessmentId)
+    );
+  };
+
+  const handleToggleSelectedVisibility = async () => {
+    if (selectedAssessments.length === 0) return;
+    const hiddenFromStudents = !areAllSelectedHidden;
+    try {
+      setIsUpdatingVisibility(true);
+      for (const assessment of selectedAssessments) {
+        const updated = await updateGradeAssessment(assessment.id, { hiddenFromStudents });
+        setAssessments((prev) =>
+          prev.map((item) => (item.id === updated.id ? updated : item))
+        );
+      }
+      showToast(
+        'success',
+        hiddenFromStudents
+          ? 'Selected marks are now hidden from students.'
+          : 'Selected marks are now visible to students.'
+      );
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : 'Failed to update mark visibility.');
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
+
+  const openAverageDialog = () => {
+    if (selectedAssessments.length === 0) return;
+    const firstSection = sections[0];
+    if (!firstSection) {
+      showToast('error', 'Create a section before uploading average marks.');
+      return;
+    }
+
+    setAverageTargetSectionId(firstSection.id);
+    setAverageAssessmentName(
+      nextAssessmentName(firstSection.name, assessmentsBySection[firstSection.id] || [])
+    );
+    setAverageError(null);
+    setIsAverageDialogOpen(true);
+  };
+
+  const handleAverageTargetChange = (sectionId: string) => {
+    setAverageTargetSectionId(sectionId);
+    const section = sections.find((item) => item.id === sectionId);
+    if (section) {
+      setAverageAssessmentName(
+        nextAssessmentName(section.name, assessmentsBySection[section.id] || [])
+      );
+    }
+  };
+
+  const handleUploadAverage = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAverageError(null);
+    const targetSection = sections.find((section) => section.id === averageTargetSectionId);
+    const assessmentNameValue = averageAssessmentName.trim();
+
+    if (!targetSection) {
+      setAverageError('Select a destination section.');
+      return;
+    }
+    if (!assessmentNameValue) {
+      setAverageError('Enter a name for the average assessment.');
+      return;
+    }
+    if (selectedAssessments.length === 0 || selectedAverageTotalMarks <= 0) {
+      setAverageError('Select at least one valid assessment column.');
+      return;
+    }
+
+    const averageEntries: { studentId: string; marks: number | null }[] = [];
+    let studentsWithMarks = 0;
+    for (const student of students) {
+      let percentageTotal = 0;
+      let markedCount = 0;
+      for (const assessment of selectedAssessments) {
+        const raw = draftMarks[markKey(assessment.id, student.id)]?.trim() ?? '';
+        if (raw === '') continue;
+
+        const parsed = parseMarksInput(raw, assessment.totalMarks);
+        if (parsed.error) {
+          setAverageError(`${student.name} · ${assessment.name}: ${parsed.error}`);
+          return;
+        }
+        if (parsed.value === null) continue;
+        percentageTotal += (parsed.value / assessment.totalMarks) * 100;
+        markedCount += 1;
+      }
+
+      if (markedCount === 0) {
+        averageEntries.push({ studentId: student.id, marks: null });
+      } else {
+        studentsWithMarks += 1;
+        const averageMarks =
+          ((percentageTotal / markedCount) * selectedAverageTotalMarks) / 100;
+        averageEntries.push({ studentId: student.id, marks: Number(averageMarks.toFixed(2)) });
+      }
+    }
+
+    if (studentsWithMarks === 0) {
+      setAverageError('No marks are entered in the selected columns.');
+      return;
+    }
+
+    try {
+      setIsUploadingAverage(true);
+      const assessment = await addGradeAssessment(
+        targetSection,
+        Number(selectedAverageTotalMarks.toFixed(2)),
+        assessmentNameValue
+      );
+      setAssessments((prev) => [...prev, assessment]);
+
+      const markEntries = averageEntries.map((entry) => ({
+        ...entry,
+        assessmentId: assessment.id,
+      }));
+      const updatedMarks = await saveGradeMarks(markEntries);
+      const updatedMap = marksToMap(updatedMarks);
+      const updatedAsStrings: Record<string, string> = {};
+      Object.entries(updatedMap).forEach(([key, value]) => {
+        updatedAsStrings[key] = formatGradeMark(value);
+      });
+      setSavedMarks(updatedAsStrings);
+      setDraftMarks((prev) => {
+        const next = { ...prev };
+        markEntries.forEach((entry) => {
+          const key = markKey(entry.assessmentId, entry.studentId);
+          if (entry.marks === null) delete next[key];
+          else next[key] = String(entry.marks);
+        });
+        return next;
+      });
+      setIsAverageDialogOpen(false);
+      showToast('success', `Average marks saved as ${assessment.name} in ${targetSection.name}.`);
+    } catch (err) {
+      setAverageError(err instanceof Error ? err.message : 'Failed to calculate and upload averages.');
+    } finally {
+      setIsUploadingAverage(false);
     }
   };
 
@@ -783,6 +959,34 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
                   </select>
                 </div>
 
+                {selectedAssessments.length > 0 && (
+                  <button
+                    id="btn-open-average-upload"
+                    type="button"
+                    onClick={openAverageDialog}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+                  >
+                    <Calculator className="w-3.5 h-3.5" />
+                    <span>Calculate average ({selectedAssessments.length})</span>
+                  </button>
+                )}
+                {selectedAssessments.length > 0 && (
+                  <button
+                    id="btn-toggle-selected-marks-visibility"
+                    type="button"
+                    disabled={isUpdatingVisibility}
+                    onClick={() => void handleToggleSelectedVisibility()}
+                    aria-pressed={areAllSelectedHidden}
+                    className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold border rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                      areAllSelectedHidden
+                        ? 'text-slate-700 bg-white hover:bg-slate-50 border-slate-200'
+                        : 'text-amber-800 bg-amber-50 hover:bg-amber-100 border-amber-200'
+                    }`}
+                  >
+                    {areAllSelectedHidden ? 'Show selected to students' : 'Hide selected from students'}
+                  </button>
+                )}
+
                 <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
                   <span className="text-[11px] text-slate-500">
                     Showing {displayStudents.length} of {students.length}
@@ -855,9 +1059,28 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
                       {orderedAssessments.map((assessment) => (
                         <th
                           key={assessment.id}
-                          className="py-2 px-3 text-center whitespace-nowrap min-w-[110px] border-l border-slate-100"
+                          className={`py-2 px-3 text-center whitespace-nowrap min-w-[110px] border-l border-slate-100 ${
+                            selectedAssessmentIds.includes(assessment.id)
+                              ? 'bg-indigo-50 text-indigo-800'
+                              : ''
+                          }`}
                         >
-                          {assessment.name} / {assessment.totalMarks}
+                          <label className="mb-1 inline-flex items-center justify-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selectedAssessmentIds.includes(assessment.id)}
+                              onChange={(event) =>
+                                handleAssessmentSelectionChange(assessment.id, event.target.checked)
+                              }
+                              aria-label={`Select ${assessment.name} column for average`}
+                              title={`Select ${assessment.name} column for average`}
+                              className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                          </label>
+                          <div>{assessment.name} / {assessment.totalMarks}</div>
+                          {assessment.hiddenFromStudents && (
+                            <span className="text-[9px] font-semibold text-amber-700">Hidden from students</span>
+                          )}
                         </th>
                       ))}
                     </tr>
@@ -947,6 +1170,124 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
             )}
           </div>
         </>
+      )}
+
+      {isAverageDialogOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="average-upload-title"
+            className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 id="average-upload-title" className="text-sm font-bold text-slate-900">
+                  Calculate column average
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Average each student's selected marks and save them in a section.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAverageDialogOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100"
+                aria-label="Close average dialog"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {averageError && (
+              <div className="mt-4 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{averageError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleUploadAverage} className="mt-4 space-y-4">
+              <div>
+                <p className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Selected columns ({selectedAssessments.length})
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedAssessments.map((assessment) => (
+                    <span
+                      key={assessment.id}
+                      className="rounded-md border border-indigo-100 bg-indigo-50 px-2 py-1 text-[11px] font-medium text-indigo-700"
+                    >
+                      {assessment.name}
+                    </span>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Blank marks are skipped, zeroes count. Averages are normalized if the selected columns have different totals.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="average-target-section"
+                  className="block text-xs font-semibold text-slate-700 mb-1"
+                >
+                  Destination section
+                </label>
+                <select
+                  id="average-target-section"
+                  required
+                  value={averageTargetSectionId}
+                  onChange={(event) => handleAverageTargetChange(event.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>{section.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="average-assessment-name"
+                  className="block text-xs font-semibold text-slate-700 mb-1"
+                >
+                  New assessment name
+                </label>
+                <input
+                  id="average-assessment-name"
+                  type="text"
+                  required
+                  value={averageAssessmentName}
+                  onChange={(event) => setAverageAssessmentName(event.target.value)}
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                New assessment total: <strong>{Number(selectedAverageTotalMarks.toFixed(2))}</strong>
+              </p>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsAverageDialogOpen(false)}
+                  className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-lg cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  id="btn-submit-average-upload"
+                  type="submit"
+                  disabled={isUploadingAverage}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg cursor-pointer disabled:opacity-50"
+                >
+                  <Calculator className="w-3.5 h-3.5" />
+                  <span>{isUploadingAverage ? 'Calculating...' : 'Calculate & Upload'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {isCreateOpen && (

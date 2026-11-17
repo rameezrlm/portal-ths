@@ -28,6 +28,22 @@ function writeList<T>(key: string, list: T[]): void {
   }
 }
 
+function dedupeGradeMarks(list: GradeMark[]): GradeMark[] {
+  const byStudentAssessment = new Map<string, GradeMark>();
+  list.forEach((mark) => {
+    const key = markKey(mark.assessmentId, mark.studentId);
+    const current = byStudentAssessment.get(key);
+    if (
+      !current ||
+      mark.updatedAt > current.updatedAt ||
+      (mark.updatedAt === current.updatedAt && mark.id === key)
+    ) {
+      byStudentAssessment.set(key, mark);
+    }
+  });
+  return Array.from(byStudentAssessment.values());
+}
+
 function sortByOrder<T extends { order: number; createdAt: string }>(list: T[]): T[] {
   return [...list].sort((a, b) => {
     if (a.order !== b.order) return a.order - b.order;
@@ -48,7 +64,7 @@ export function readGradeAssessmentsLocal(): GradeAssessment[] {
 }
 
 export function readGradeMarksLocal(): GradeMark[] {
-  return readList<GradeMark>(MARKS_KEY);
+  return dedupeGradeMarks(readList<GradeMark>(MARKS_KEY));
 }
 
 async function fetchCollection<T>(
@@ -128,7 +144,9 @@ export async function fetchGradeAssessments(): Promise<GradeAssessment[]> {
 }
 
 export async function fetchGradeMarks(): Promise<GradeMark[]> {
-  return fetchCollection<GradeMark>('gradeMarks', MARKS_KEY);
+  const marks = dedupeGradeMarks(await fetchCollection<GradeMark>('gradeMarks', MARKS_KEY));
+  writeList(MARKS_KEY, marks);
+  return marks;
 }
 
 export async function createGradeSection(
@@ -210,7 +228,7 @@ export async function addGradeAssessment(
 
 export async function updateGradeAssessment(
   assessmentId: string,
-  patch: { name?: string; totalMarks?: number }
+  patch: { name?: string; totalMarks?: number; hiddenFromStudents?: boolean }
 ): Promise<GradeAssessment> {
   const all = await fetchGradeAssessments();
   const index = all.findIndex((a) => a.id === assessmentId);
@@ -301,16 +319,18 @@ export async function saveGradeMarks(
   entries: { assessmentId: string; studentId: string; marks: number | null }[]
 ): Promise<GradeMark[]> {
   const existing = await fetchGradeMarks();
-  const map = new Map(existing.map((m) => [m.id, m]));
+  const map = new Map(existing.map((m) => [markKey(m.assessmentId, m.studentId), m]));
   const now = new Date().toISOString();
   const saved: GradeMark[] = [];
 
   for (const entry of entries) {
     const id = markKey(entry.assessmentId, entry.studentId);
+    const previous = map.get(id);
 
     if (entry.marks === null) {
-      if (map.has(id)) {
+      if (previous) {
         map.delete(id);
+        if (previous.id !== id) await removeDoc('gradeMarks', previous.id);
         await removeDoc('gradeMarks', id);
       }
       continue;
@@ -323,6 +343,9 @@ export async function saveGradeMarks(
       marks: entry.marks,
       updatedAt: now,
     };
+    if (previous && previous.id !== id) {
+      await removeDoc('gradeMarks', previous.id);
+    }
     map.set(id, record);
     saved.push(record);
     await persistDoc('gradeMarks', id, record);
@@ -335,7 +358,7 @@ export async function saveGradeMarks(
 export function marksToMap(marks: GradeMark[]): Record<string, number> {
   const result: Record<string, number> = {};
   marks.forEach((m) => {
-    result[m.id] = m.marks;
+    result[markKey(m.assessmentId, m.studentId)] = m.marks;
   });
   return result;
 }
@@ -405,6 +428,11 @@ export function percentToLetterGrade(percent: number): string {
 
 export function formatGradePercent(value: number): string {
   return value.toFixed(2);
+}
+
+export function formatGradeMark(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  return String(Number(value.toFixed(2)));
 }
 
 export interface GradeColorScheme {
