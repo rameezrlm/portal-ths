@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Award } from 'lucide-react';
 import type { GradeAssessment, GradeMark, GradeSection, LabClass, Student } from '../types';
 import { fetchStudents, readStudentsLocal } from '../services/studentService';
+import { StudentAvatar } from './StudentAvatar';
 import {
   fetchGradeAssessments,
   fetchGradeMarks,
@@ -46,13 +47,16 @@ export const StudentAcademicStandings: React.FC<StudentAcademicStandingsProps> =
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') void refresh();
     };
+    const refreshPicture = () => setStudents(readStudentsLocal());
 
     void refresh();
     window.addEventListener('focus', refreshWhenVisible);
+    window.addEventListener('it-lab-student-picture-changed', refreshPicture);
     document.addEventListener('visibilitychange', refreshWhenVisible);
     return () => {
       cancelled = true;
       window.removeEventListener('focus', refreshWhenVisible);
+      window.removeEventListener('it-lab-student-picture-changed', refreshPicture);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
     };
   }, []);
@@ -120,7 +124,7 @@ export const StudentAcademicStandings: React.FC<StudentAcademicStandingsProps> =
       total,
       percent,
       standing,
-      initials: (student?.name || 'S').split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase(),
+      imageUrl: student?.profileImageUrl,
     };
   }, [students, sections, assessments, marks, classes, studentId]);
 
@@ -128,7 +132,7 @@ export const StudentAcademicStandings: React.FC<StudentAcademicStandingsProps> =
     <section id="student-academic-standings" className="overflow-hidden rounded-xl border border-emerald-100 bg-white shadow-sm" aria-label="Your Academic Standing">
       <div className="grid gap-5 p-5 sm:grid-cols-[minmax(0,1.25fr)_repeat(3,minmax(0,1fr))] sm:items-center sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-900 ring-2 ring-emerald-50">{profile.initials}</div>
+          <StudentAvatar name={profile.name} imageUrl={profile.imageUrl} size="md" className="!h-12 !w-12" />
           <div className="min-w-0">
             <h2 className="truncate text-sm font-bold text-slate-900">{profile.name}</h2>
         <p className="mt-1 text-[11px] text-slate-500">Class Rank: <span className="font-semibold text-slate-700">{profile.rankPosition ? `${profile.rankPosition} of ${profile.rankTotal}` : '—'}</span></p>

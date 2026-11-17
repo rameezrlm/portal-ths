@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import {
-  Lock,
-  Mail,
   AlertCircle,
   ArrowRight,
-  BookOpen,
-  GraduationCap,
-  Pencil,
   Award,
-  Microscope,
-  Lightbulb,
+  BookOpen,
   Calculator,
+  Eye,
+  EyeOff,
+  GraduationCap,
+  Lightbulb,
+  LoaderCircle,
+  Lock,
+  Mail,
+  Microscope,
+  Pencil,
   School,
 } from 'lucide-react';
 import { loginUser } from '../services/teacherService';
@@ -38,21 +41,19 @@ const FLOATING_ICONS = [
 export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
-
     const cleanId = identifier.trim();
     const cleanPass = password.trim();
-
     if (!cleanId || !cleanPass) {
       setError('Please enter your email and password.');
       return;
     }
-
     try {
       setIsLoading(true);
       const session = await loginUser(cleanId, cleanPass);
@@ -64,122 +65,48 @@ export const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     }
   };
 
-  return (
-    <div
-      id="login-page-container"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-white p-4 sm:p-6"
-    >
-      {/* Soft green wash — still white-first */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(16, 185, 129, 0.08), transparent 55%)',
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Flying education icons */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-        {FLOATING_ICONS.map(({ Icon, className, size }, index) => (
-          <span key={index} className={className}>
-            <Icon style={{ width: size, height: size }} strokeWidth={1.5} />
-          </span>
-        ))}
-      </div>
-
-      {/* Glass login card */}
-      <div className="login-panel relative z-10 w-full max-w-[380px]">
-        <div className="login-glass-card rounded-3xl border border-white/70 bg-white/55 p-7 sm:p-8 shadow-[0_8px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-          <div className="login-brand text-center mb-7">
-            <div className="w-[84px] h-[84px] rounded-full border border-emerald-100 bg-white/80 shadow-sm mx-auto mb-4 flex items-center justify-center overflow-hidden p-2">
-              <img
-                src="/ths-logo.png"
-                alt="Taleem-O-Hunar Society"
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  const el = e.currentTarget;
-                  if (el.src.includes('ths-logo')) {
-                    el.src = '/logo.png';
-                    return;
-                  }
-                  el.style.display = 'none';
-                }}
-              />
+  return <main id="login-page-container" className="login-page relative flex min-h-screen items-center justify-center overflow-hidden px-5 py-10 sm:px-8">
+    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+      {FLOATING_ICONS.map(({ Icon, className, size }, index) => <span key={index} className={className}><Icon style={{ width: size, height: size }} strokeWidth={1.5} /></span>)}
+    </div>
+    <div className="login-layout relative z-10 mx-auto w-full max-w-[420px]">
+      <section className="login-panel mx-auto w-full max-w-[420px]" aria-label="Sign in">
+        <div className="login-glass-card relative overflow-hidden rounded-md border border-slate-200 bg-white p-7 sm:p-9">
+          <div className="login-brand relative mb-7 text-center">
+            <div className="login-logo-wrap mx-auto mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-md border border-emerald-100 bg-white p-2 shadow-sm">
+              <img src="/ths-logo.png" alt="Taleem-O-Hunar Society" className="h-full w-full object-contain" referrerPolicy="no-referrer" onError={event => { const image = event.currentTarget; if (image.src.includes('ths-logo')) image.src = '/logo.png'; else image.style.display = 'none'; }} />
             </div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-              THS Tech labs LMS
-            </h1>
-            <p className="text-xs text-slate-500 mt-1 font-medium">
-              Taleem-O-Hunar Society
-            </p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700">THS Tech labs LMS</p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900">Welcome back</h2>
+            <p className="mt-1.5 text-xs leading-relaxed text-slate-500">Sign in to continue to your workspace.</p>
           </div>
 
-          {error && (
-            <div
-              id="login-error-alert"
-              className="mb-5 p-3 rounded-xl bg-red-50/90 border border-red-200 text-red-700 text-xs flex items-start gap-2"
-            >
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
-              <span>{error}</span>
-            </div>
-          )}
+          {error && <div id="login-error-alert" role="alert" className="login-alert relative mb-5 flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><span>{error}</span></div>}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="login-form relative space-y-4">
             <div>
-              <label htmlFor="login-identifier" className="sr-only">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                <input
-                  id="login-identifier"
-                  type="text"
-                  required
-                  autoFocus
-                  placeholder="Enter Username"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/70 border border-slate-200/90 rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/25 focus:border-emerald-700 focus:bg-white transition-all"
-                />
+              <label htmlFor="login-identifier" className="mb-1.5 block text-xs font-bold text-slate-700">Email or username</label>
+              <div className="login-input-wrap relative">
+                <Mail className="login-input-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input id="login-identifier" type="text" autoComplete="username" required placeholder="Enter your email or username" value={identifier} onChange={event => setIdentifier(event.target.value)} className="w-full rounded-md border border-slate-200 bg-slate-50/70 py-3 pl-11 pr-4 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100" />
               </div>
             </div>
-
             <div>
-              <label htmlFor="login-password" className="sr-only">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-                <input
-                  id="login-password"
-                  type="password"
-                  required
-                  placeholder="Enter Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/70 border border-slate-200/90 rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-700/25 focus:border-emerald-700 focus:bg-white transition-all"
-                />
+              <label htmlFor="login-password" className="mb-1.5 block text-xs font-bold text-slate-700">Password</label>
+              <div className="login-input-wrap relative">
+                <Lock className="login-input-icon absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                <input id="login-password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" required placeholder="Enter your password" value={password} onChange={event => setPassword(event.target.value)} className="w-full rounded-md border border-slate-200 bg-slate-50/70 py-3 pl-11 pr-11 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-100" />
+                <button type="button" onClick={() => setShowPassword(value => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:bg-emerald-50 hover:text-emerald-700">{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button>
               </div>
             </div>
-
-            <button
-              id="btn-login-submit"
-              type="submit"
-              disabled={isLoading}
-              className="w-full mt-2 inline-flex items-center justify-center gap-2 py-3 px-4 bg-emerald-800 hover:bg-emerald-900 active:bg-emerald-950 text-white font-semibold text-sm rounded-full shadow-sm transition-all cursor-pointer disabled:opacity-50"
-            >
-              <span>{isLoading ? 'Signing in...' : 'Sign In'}</span>
-              {!isLoading && <ArrowRight className="w-4 h-4" />}
+            <button id="btn-login-submit" type="submit" disabled={isLoading} className="login-submit group mt-1 flex w-full items-center justify-center gap-2 rounded-md bg-emerald-800 px-4 py-3 text-sm font-bold text-white shadow-md shadow-emerald-900/15 transition-all hover:bg-emerald-900 hover:shadow-lg hover:shadow-emerald-900/20 active:scale-[0.99] disabled:cursor-wait disabled:opacity-70">
+              {isLoading ? <><LoaderCircle className="h-4 w-4 animate-spin" /> Signing in...</> : <>Sign in <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" /></>}
             </button>
           </form>
 
-          <p className="mt-6 text-center text-[11px] text-slate-400 leading-relaxed">
-            Teachers, students, and admin can sign in with their registered credentials.
-          </p>
+          <p className="relative mt-6 border-t border-slate-100 pt-5 text-center text-[11px] leading-relaxed text-slate-500">For administrators, teachers, and students.</p>
         </div>
-      </div>
+      </section>
     </div>
-  );
+  </main>;
 };

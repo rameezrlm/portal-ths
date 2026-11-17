@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { StudentAvatar } from './StudentAvatar';
 import {
   Search,
   Save,
@@ -367,7 +368,7 @@ export const AttendanceTable: React.FC<AttendanceTableProps> = ({
                       </td>
 
                       <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900">{student.name}</div>
+                        <div className="flex items-center gap-2 font-semibold text-slate-900"><StudentAvatar name={student.name} imageUrl={student.profileImageUrl} size="sm" />{student.name}</div>
                         <div className="text-slate-400 md:hidden text-[11px]">{student.email}</div>
                       </td>
 

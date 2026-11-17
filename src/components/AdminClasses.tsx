@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { StudentAvatar } from './StudentAvatar';
 import {
   BookOpen,
   Plus,
@@ -326,6 +327,7 @@ export const AdminClasses: React.FC<AdminClassesProps> = ({
                             onChange={() => toggleStudent(student.id)}
                             className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-700"
                           />
+                          <StudentAvatar name={student.name} imageUrl={student.profileImageUrl} size="sm" />
                           <span className="min-w-0">
                             <span className="block truncate font-semibold text-slate-800">{student.name}</span>
                             <span className="mt-0.5 block truncate text-slate-500">{student.email}</span>

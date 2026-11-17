@@ -10,7 +10,11 @@ service cloud.firestore {
 
     // Students collection: Only lab teachers and admins can view and manage students
     match /students/{studentId} {
-      allow read, write: if isAllowed();
+      allow read, delete: if isAllowed();
+      allow create: if isAllowed()
+        && !request.resource.data.keys().hasAny(['profileImageUrl', 'profileImageFileId']);
+      allow update: if isAllowed()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['profileImageUrl', 'profileImageFileId']);
     }
 
     // Attendance records: One record per student per date
@@ -20,7 +24,11 @@ service cloud.firestore {
 
     // Teachers / Instructors managed by Admin
     match /teachers/{teacherId} {
-      allow read, write: if isAllowed();
+      allow read, delete: if isAllowed();
+      allow create: if isAllowed()
+        && !request.resource.data.keys().hasAny(['profileImageUrl', 'profileImageFileId']);
+      allow update: if isAllowed()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['profileImageUrl', 'profileImageFileId']);
     }
 
     // Gradebook sections (Quiz, Assignment, Project, ...)
@@ -60,6 +68,14 @@ service cloud.firestore {
     }
 
     match /announcements/{announcementId} {
+      allow read, write: if isAllowed();
+    }
+
+    match /classSchedules/{scheduleId} {
+      allow read, write: if isAllowed();
+    }
+
+    match /platformSettings/{settingId} {
       allow read, write: if isAllowed();
     }
 

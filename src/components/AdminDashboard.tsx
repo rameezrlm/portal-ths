@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { StudentAvatar } from './StudentAvatar';
 import {
   UserPlus,
   Trash2,
@@ -19,6 +20,7 @@ import {
   CalendarDays,
   BookOpen,
   AppWindow,
+  Megaphone,
 } from 'lucide-react';
 import {
   fetchStudents,
@@ -35,8 +37,11 @@ import {
 import { AdminAttendance } from './AdminAttendance';
 import { AdminClasses } from './AdminClasses';
 import { AdminWebApps } from './AdminWebApps';
+import { AdminAnnouncements } from './AdminAnnouncements';
+import { Timetable } from './Timetable';
+import { AdminSettings } from './AdminSettings';
 import { fetchClasses } from '../services/classService';
-import type { Student, Teacher, UserSession } from '../types';
+import type { LabClass, Student, Teacher, UserSession } from '../types';
 
 interface AdminDashboardProps {
   session: UserSession;
@@ -44,7 +49,7 @@ interface AdminDashboardProps {
   todayDisplay: string;
 }
 
-type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'apps';
+type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'apps' | 'announcements' | 'timetable' | 'settings';
 
 const AdminQuickTabs: React.FC<{
   viewMode: AdminViewMode;
@@ -60,10 +65,13 @@ const AdminQuickTabs: React.FC<{
     { id: 'teachers', label: `Teachers (${teachersCount})`, activeClass: 'text-emerald-700' },
     { id: 'attendance', label: 'Attendance', activeClass: 'text-sky-700' },
     { id: 'apps', label: 'Web Apps', activeClass: 'text-emerald-700' },
+    { id: 'announcements', label: 'Announcements', activeClass: 'text-emerald-700' },
+    { id: 'timetable', label: 'Timetable', activeClass: 'text-sky-700' },
+    { id: 'settings', label: 'Settings', activeClass: 'text-slate-700' },
   ];
 
   return (
-    <div className="inline-flex flex-wrap p-0.5 bg-slate-200/80 rounded-lg">
+    <div className="flex w-full max-w-full gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white/90 p-1 shadow-xs">
       {tabs.map((tab) => {
         const isActive = viewMode === tab.id;
         return (
@@ -73,8 +81,8 @@ const AdminQuickTabs: React.FC<{
             onClick={() => onChange(tab.id)}
             className={
               isActive
-                ? `px-3 py-1 text-xs font-semibold bg-white ${tab.activeClass} rounded-md shadow-xs cursor-default`
-                : 'px-3 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 rounded-md transition-colors cursor-pointer'
+                ? `shrink-0 whitespace-nowrap px-3 py-2 text-xs font-semibold bg-slate-100 ${tab.activeClass} rounded-md shadow-xs cursor-default`
+                : 'shrink-0 whitespace-nowrap px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-md transition-colors cursor-pointer'
             }
           >
             {tab.label}
@@ -97,6 +105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [isLoadingStudents, setIsLoadingStudents] = useState(true);
   const [isLoadingTeachers, setIsLoadingTeachers] = useState(true);
   const [classesCount, setClassesCount] = useState(0);
+  const [adminClasses, setAdminClasses] = useState<LabClass[]>([]);
 
   // Search states
   const [studentSearch, setStudentSearch] = useState('');
@@ -179,6 +188,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     try {
       const classList = await fetchClasses();
       setClassesCount(classList.length);
+      setAdminClasses(classList);
     } catch (err) {
       console.error('Failed to load classes:', err);
     }
@@ -404,11 +414,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       t.email.toLowerCase().includes(teacherSearch.toLowerCase())
   );
 
+  useEffect(() => { if (viewMode === 'timetable') void fetchClasses().then(setAdminClasses).catch(console.error); }, [viewMode]);
+
   const displayName = session.name || 'Admin';
   const initial = (displayName.charAt(0) || 'A').toUpperCase();
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col antialiased">
+    <div className="app-shell min-h-screen text-slate-800 flex flex-col antialiased">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -430,7 +442,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-30 border-b border-emerald-900 bg-emerald-800 text-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="mx-auto flex h-16 max-w-[1680px] items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* Logo & Title */}
           <button
             id="btn-admin-go-home"
@@ -501,7 +513,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       </header>
 
       {/* Main Body */}
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        <main className="mx-auto w-full max-w-[1680px] flex-1 space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {/* VIEW 1: OVERVIEW WITH TWO MAIN CARDS */}
         {viewMode === 'overview' && (
           <div className="space-y-6 animate-in fade-in duration-150">
@@ -511,9 +523,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 Administration Console
               </h2>
               <p className="text-xs text-slate-500 mt-1">
-                Create class sections, manage users and attendance, and register apps for students.
+                Manage users, courses, announcements, schedules, attendance, and apps.
               </p>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button type="button" onClick={() => setViewMode('announcements')} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs hover:border-emerald-300 transition-colors"><span className="rounded-lg bg-emerald-50 p-2 text-emerald-700"><Megaphone className="w-5 h-5" /></span><span><strong className="block text-sm text-slate-900">Announcements</strong><small className="text-xs text-slate-500">Create, edit, publish, and remove notices</small></span></button>
+              <button type="button" onClick={() => setViewMode('timetable')} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs hover:border-sky-300 transition-colors"><span className="rounded-lg bg-sky-50 p-2 text-sky-700"><CalendarDays className="w-5 h-5" /></span><span><strong className="block text-sm text-slate-900">Timetable</strong><small className="text-xs text-slate-500">Schedule classes and assign teachers</small></span></button>
+            </div>
+
+            <button type="button" onClick={() => setViewMode('settings')} className="text-xs font-semibold text-emerald-700 hover:underline">Platform settings →</button>
 
             {/* PRIMARY CARDS */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5 gap-6">
@@ -521,7 +540,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-classes"
                 onClick={() => setViewMode('classes')}
-                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-violet-900/10 hover:border-violet-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-violet-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
                 style={{ animationDelay: '0ms' }}
               >
                 <div>
@@ -552,7 +571,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-students"
                 onClick={() => setViewMode('students')}
-                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-900/10 hover:border-indigo-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-indigo-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
                 style={{ animationDelay: '60ms' }}
               >
                 <div>
@@ -583,7 +602,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-teachers"
                 onClick={() => setViewMode('teachers')}
-                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
                 style={{ animationDelay: '120ms' }}
               >
                 <div>
@@ -614,7 +633,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-attendance"
                 onClick={() => setViewMode('attendance')}
-                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-sky-900/10 hover:border-sky-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-sky-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
                 style={{ animationDelay: '180ms' }}
               >
                 <div>
@@ -645,7 +664,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div
                 id="card-open-student-web-apps"
                 onClick={() => setViewMode('apps')}
-                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-1 hover:scale-[1.02] hover:shadow-xl hover:shadow-emerald-900/10 hover:border-emerald-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
+                className="group animate-zoom-in bg-white rounded-2xl border border-slate-200 p-6 shadow-xs transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-emerald-400 cursor-pointer flex flex-col justify-between motion-reduce:transform-none"
                 style={{ animationDelay: '300ms' }}
               >
                 <div>
@@ -670,6 +689,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {viewMode === 'announcements' && <div className="space-y-5"><AdminQuickTabs viewMode={viewMode} onChange={setViewMode} classesCount={classesCount} studentsCount={students.length} teachersCount={teachers.length} /><AdminAnnouncements adminName={displayName} /></div>}
+        {viewMode === 'settings' && <div className="space-y-5"><AdminQuickTabs viewMode={viewMode} onChange={setViewMode} classesCount={classesCount} studentsCount={students.length} teachersCount={teachers.length} /><AdminSettings /></div>}
+        {viewMode === 'timetable' && <div className="space-y-5"><AdminQuickTabs viewMode={viewMode} onChange={setViewMode} classesCount={classesCount} studentsCount={students.length} teachersCount={teachers.length} /><Timetable role="admin" classes={adminClasses} teachers={teachers} onError={message => showToast('error', message)} /></div>}
 
         {/* VIEW 2: CLASSES / SECTIONS */}
         {viewMode === 'classes' && (
@@ -834,9 +857,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <td className="py-3 px-4 text-center font-medium text-slate-400">
                             {idx + 1}
                           </td>
-                          <td className="py-3 px-4 font-semibold text-slate-900">
-                            {student.name}
-                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-900"><div className="flex items-center gap-2"><StudentAvatar name={student.name} imageUrl={student.profileImageUrl} size="sm" />{student.name}</div></td>
                           <td className="py-3 px-4 text-slate-600 font-mono text-[11px]">
                             {student.email}
                           </td>
@@ -1024,7 +1045,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               {idx + 1}
                             </td>
                             <td className="py-3 px-4 font-semibold text-slate-900">
-                              {teacher.name}
+                              <span className="flex items-center gap-2"><StudentAvatar name={teacher.name} imageUrl={teacher.profileImageUrl} size="sm" />{teacher.name}</span>
                             </td>
                             <td className="py-3 px-4 text-slate-600 font-mono text-[11px]">
                               {teacher.email}

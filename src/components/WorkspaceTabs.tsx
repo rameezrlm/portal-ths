@@ -1,0 +1,3 @@
+import React from 'react';
+export interface WorkspaceTab { id: string; label: string; }
+export const WorkspaceTabs: React.FC<{ id?: string; tabs: WorkspaceTab[]; activeTab: string; onChange: (id: string) => void }> = ({ id, tabs, activeTab, onChange }) => <nav id={id} className="flex flex-wrap gap-1 px-4" aria-label="Workspace tabs">{tabs.map(tab => <button key={tab.id} type="button" onClick={() => onChange(tab.id)} aria-current={activeTab === tab.id ? 'page' : undefined} className={`rounded-lg px-3 py-2 text-xs font-semibold ${activeTab === tab.id ? 'bg-emerald-700 text-white' : 'bg-white text-slate-600'}`}>{tab.label}</button>)}</nav>;

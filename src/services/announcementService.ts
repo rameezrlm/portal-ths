@@ -5,7 +5,6 @@ import { withFirestoreTimeout } from '../utils/firestoreTimeout';
 
 const ANNOUNCEMENTS_KEY = 'it_lab_announcements';
 const ANNOUNCEMENTS_CHANGED_EVENT = 'it-lab-announcements-changed';
-const PENDING_LOCAL_MS = 15 * 60 * 1000;
 
 function newId(): string {
   return `ann_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -32,6 +31,8 @@ function normalizeAnnouncement(raw: Partial<Announcement> & { id: string }): Ann
     message: typeof raw.message === 'string' ? raw.message : '',
     createdBy: typeof raw.createdBy === 'string' ? raw.createdBy : '',
     createdAt: toIso(raw.createdAt) || new Date().toISOString(),
+    updatedAt: toIso(raw.updatedAt) || toIso(raw.createdAt) || new Date().toISOString(),
+    published: raw.published !== false,
   };
 }
 
@@ -62,23 +63,6 @@ function sortAnnouncements(list: Announcement[]): Announcement[] {
   return [...list].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 }
 
-function mergeAnnouncements(remote: Announcement[], local: Announcement[]): Announcement[] {
-  const map = new Map<string, Announcement>();
-  for (const item of remote) {
-    map.set(item.id, item);
-  }
-  const remoteIds = new Set(remote.map((item) => item.id));
-  for (const item of local) {
-    if (remoteIds.has(item.id)) continue;
-    const created = Date.parse(item.createdAt);
-    const age = Date.now() - created;
-    if (Number.isFinite(created) && age >= 0 && age < PENDING_LOCAL_MS) {
-      map.set(item.id, item);
-    }
-  }
-  return [...map.values()];
-}
-
 function toPayload(announcement: Announcement): Record<string, unknown> {
   return JSON.parse(JSON.stringify(announcement)) as Record<string, unknown>;
 }
@@ -102,7 +86,7 @@ async function persistAnnouncement(announcement: Announcement): Promise<void> {
 }
 
 export function announcementsForClass(list: Announcement[], classId: string): Announcement[] {
-  return list.filter((item) => !item.classId || item.classId === classId);
+  return list.filter((item) => item.published !== false && item.classId === classId);
 }
 
 export function formatAnnouncementTime(iso: string): string {
@@ -136,7 +120,7 @@ export function subscribeAnnouncementUpdates(onChange: () => void): () => void {
       collection(db, 'announcements'),
       (snap) => {
         const remote = fromSnapshotDocs(snap.docs);
-        const merged = sortAnnouncements(mergeAnnouncements(remote, readAnnouncements()));
+        const merged = sortAnnouncements(remote);
         writeAnnouncements(merged);
         trigger();
       },
@@ -166,25 +150,9 @@ export async function fetchAnnouncements(): Promise<Announcement[]> {
       const snap = await withFirestoreTimeout(getDocs(collection(db, 'announcements')));
       const remote = fromSnapshotDocs(snap.docs);
 
-      if (remote.length > 0) {
-        const merged = sortAnnouncements(mergeAnnouncements(remote, local));
-        writeAnnouncements(merged);
-        return merged;
-      }
-
-      if (local.length > 0) {
-        for (const announcement of local) {
-          try {
-            await setDoc(doc(db, 'announcements', announcement.id), toPayload(announcement));
-          } catch (e) {
-            console.error('Error migrating announcement to Firestore:', e);
-          }
-        }
-        return local;
-      }
-
-      writeAnnouncements([]);
-      return [];
+      const list = sortAnnouncements(remote);
+      writeAnnouncements(list);
+      return list;
     } catch (err) {
       console.warn('Error fetching announcements from Firestore, using local:', err);
       return local;
@@ -220,34 +188,55 @@ export async function createAnnouncement(input: {
     message,
     createdBy: input.createdBy,
     createdAt: new Date().toISOString(),
+    published: true,
   };
-
-  const list = readAnnouncements();
-  writeAnnouncements(
-    sortAnnouncements([announcement, ...list.filter((item) => item.id !== announcement.id)]),
-    true
-  );
 
   try {
     await persistAnnouncement(announcement);
+    const list = readAnnouncements();
+    writeAnnouncements(sortAnnouncements([announcement, ...list.filter(item => item.id !== announcement.id)]), true);
   } catch (err) {
     console.error(`Error saving announcement ${announcement.id}:`, err);
-    throw new Error('Announcement saved on this device, but it could not reach students. Check your connection and try again.');
+    throw new Error('Could not publish announcement. Check your connection and try again.');
   }
 
   return announcement;
 }
 
 export async function deleteAnnouncement(id: string): Promise<void> {
-  const next = readAnnouncements().filter((item) => item.id !== id);
-  writeAnnouncements(next, true);
-
   if (isFirebaseConfigured && db) {
     try {
-      await deleteDoc(doc(db, 'announcements', id));
+      await withFirestoreTimeout(deleteDoc(doc(db, 'announcements', id)), 10000);
     } catch (err) {
       console.error('Error deleting announcement from Firestore:', err);
-      throw new Error('Could not delete this announcement for students. Try again.');
+      throw new Error('Could not delete this announcement. Try again.');
     }
   }
+  writeAnnouncements(readAnnouncements().filter(item => item.id !== id), true);
+}
+
+export async function saveAdminAnnouncement(input: {
+  id?: string; title: string; message: string; published: boolean; createdBy: string;
+}): Promise<Announcement> {
+  const title = input.title.trim();
+  const message = input.message.trim();
+  if (!title || !message) throw new Error('Enter a title and message.');
+  const existing = input.id ? readAnnouncements().find(item => item.id === input.id) : undefined;
+  const announcement: Announcement = {
+    id: input.id || newId(), title, message, published: input.published,
+    createdBy: existing?.createdBy || input.createdBy,
+    createdAt: existing?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  await persistAnnouncement(announcement);
+  writeAnnouncements(sortAnnouncements([announcement, ...readAnnouncements().filter(item => item.id !== announcement.id)]), true);
+  return announcement;
+}
+
+export function unreadAnnouncementCount(items: Announcement[], userKey: string, classIds: string[]): number {
+  const lastSeen = localStorage.getItem(`it_lab_announcements_seen_${userKey}`) || '';
+  return items.filter(item => item.published !== false && (classIds.length ? Boolean(item.classId && classIds.includes(item.classId)) : !item.classId) && (item.updatedAt || item.createdAt) > lastSeen).length;
+}
+export function markAnnouncementsSeen(userKey: string): void {
+  localStorage.setItem(`it_lab_announcements_seen_${userKey}`, new Date().toISOString());
 }

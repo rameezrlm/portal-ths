@@ -64,6 +64,8 @@ export async function fetchTeachers(): Promise<Teacher[]> {
             name: data.name || '',
             email: data.email || '',
             password: data.password || '',
+            profileImageUrl: data.profileImageUrl || undefined,
+            profileImageFileId: data.profileImageFileId || undefined,
             createdAt: data.createdAt || new Date().toISOString(),
           });
         });
@@ -199,17 +201,53 @@ export async function loginUser(identifier: string, password: string): Promise<U
   );
 
   if (matched) {
+    let profileImageUrl = matched.profileImageUrl;
+    try {
+      const response = await fetch('/api/teacher-login', {
+        method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: cleanId, password: cleanPass }), signal: AbortSignal.timeout(5000),
+      });
+      if (response.ok) {
+        const payload = await response.json() as { teacher: { profileImageUrl?: string } };
+        profileImageUrl = payload.teacher.profileImageUrl || undefined;
+      }
+    } catch (error) { console.warn('Teacher picture service is unavailable:', error); }
     const session: UserSession = {
       role: 'teacher',
       name: matched.name,
       email: matched.email,
       teacherId: matched.id,
+      profileImageUrl,
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     return session;
   }
 
   // 3. Check Student credentials
+  try {
+    const response = await fetch('/api/student-login', {
+      method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: cleanId, password: cleanPass }),
+    });
+    if (response.ok) {
+      const payload = await response.json() as { student: { id: string; name: string; email: string; profileImageUrl?: string } };
+      const session: UserSession = {
+        role: 'student', name: payload.student.name, email: payload.student.email,
+        studentId: payload.student.id, profileImageUrl: payload.student.profileImageUrl || undefined,
+      };
+      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+      return session;
+    }
+    if (response.status !== 404 || !import.meta.env.DEV) {
+      const payload = await response.json().catch(() => ({})) as { error?: string };
+      throw new Error(payload.error || 'Student sign-in is unavailable.');
+    }
+  } catch (error) {
+    if (!import.meta.env.DEV) throw error;
+    console.warn('Student API unavailable in Vite development; using local login.', error);
+  }
+
+  // Vite's standalone dev server does not host Vercel functions.
   const students = await fetchStudents();
   const localStudents = students;
   const matchedStudent = localStudents.find(
@@ -222,6 +260,7 @@ export async function loginUser(identifier: string, password: string): Promise<U
       name: matchedStudent.name,
       email: matchedStudent.email,
       studentId: matchedStudent.id,
+      profileImageUrl: matchedStudent.profileImageUrl,
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
     return session;
@@ -243,6 +282,25 @@ export function saveSession(session: UserSession): void {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
 }
 
-export function logoutUser(): void {
+export async function logoutUser(): Promise<void> {
+  const session = getCurrentSession();
+  if (session?.role === 'teacher') {
+    try { await fetch('/api/teacher-logout', { method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(5000) }); }
+    catch (error) { console.warn('Could not clear teacher picture session:', error); }
+  }
+  if (session?.role === 'student') {
+    try {
+      const response = await fetch('/api/student-logout', { method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(5000) });
+      if (!response.ok && !import.meta.env.DEV) throw new Error('Sign-out service is unavailable. Please try again.');
+    } catch (error) {
+      if (!import.meta.env.DEV) throw error;
+      console.warn('Could not clear server student session in development:', error);
+    }
+  }
   localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
+export function updateTeacherPictureCache(teacherId: string, imageUrl?: string, fileId?: string): void {
+  saveLocalTeachers(getLocalTeachers().map(teacher => teacher.id === teacherId
+    ? { ...teacher, profileImageUrl: imageUrl, profileImageFileId: fileId } : teacher));
 }

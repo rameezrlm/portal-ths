@@ -8,6 +8,8 @@ export interface Student {
   email: string;
   contact?: string;
   password?: string;
+  profileImageUrl?: string;
+  profileImageFileId?: string;
   createdAt: string;
 }
 
@@ -44,7 +46,24 @@ export interface Teacher {
   name: string;
   email: string;
   password?: string;
+  profileImageUrl?: string;
+  profileImageFileId?: string;
   createdAt: string;
+}
+
+export interface LeaveRequest {
+  id: string;
+  classId: string;
+  studentId: string;
+  studentName: string;
+  fromDate: string;
+  toDate: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  reviewNote?: string;
 }
 
 export interface UserSession {
@@ -53,6 +72,7 @@ export interface UserSession {
   email: string;
   teacherId?: string;
   studentId?: string;
+  profileImageUrl?: string;
 }
 
 /** Admin-created course/class with assigned teachers and students. */
@@ -147,6 +167,24 @@ export interface Announcement {
   title: string;
   message: string;
   createdBy: string;
+  createdAt: string;
+  published?: boolean;
+  updatedAt?: string;
+}
+
+export interface ClassSchedule {
+  id: string;
+  classId: string;
+  teacherIds: string[];
+  /** Legacy single-teacher schedules remain readable until edited. */
+  teacherId?: string;
+  date: string;
+  /** Weekly meeting days, Sunday = 0 through Saturday = 6. Older schedules use the start date's weekday. */
+  weekdays?: number[];
+  time: string;
+  durationMinutes: number;
+  /** Weekly from date until an administrator deactivates the slot. */
+  active?: boolean;
   createdAt: string;
 }
 

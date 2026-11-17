@@ -14,6 +14,7 @@ import {
 interface TeacherAnnouncementsProps {
   classId: string;
   session: UserSession;
+  canPost?: boolean;
   showToast: (type: 'success' | 'error', message: string) => void;
 }
 
@@ -21,6 +22,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
   classId,
   session,
   showToast,
+  canPost = true,
 }) => {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +36,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
     if (!silent) setIsLoading(true);
     try {
       const list = await fetchAnnouncements();
-      setAnnouncements(announcementsForClass(list, classId));
+      setAnnouncements(announcementsForClass(list, classId).filter(item => item.classId === classId));
     } catch (err) {
       console.error('Failed to load announcements:', err);
       if (!silent) showToast('error', 'Failed to load announcements.');
@@ -46,7 +48,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
   useEffect(() => {
     void loadAnnouncements();
     return subscribeAnnouncementUpdates(() => {
-      setAnnouncements(announcementsForClass(readAnnouncementsLocal(), classId));
+      setAnnouncements(announcementsForClass(readAnnouncementsLocal(), classId).filter(item => item.classId === classId));
       void loadAnnouncements(true);
     });
   }, [classId]);
@@ -97,7 +99,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 sm:p-6">
+      {canPost && <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 sm:p-6">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
           <Megaphone className="w-4 h-4 text-indigo-600" />
           New announcement
@@ -151,7 +153,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
             </button>
           </div>
         </form>
-      </div>
+      </div>}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100">
@@ -180,7 +182,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
                       {announcement.createdBy} · {formatAnnouncementTime(announcement.createdAt)}
                     </p>
                   </div>
-                  <button
+                  {canPost && <button
                     type="button"
                     disabled={deletingId === announcement.id}
                     onClick={() => handleDelete(announcement)}
@@ -188,7 +190,7 @@ export const TeacherAnnouncements: React.FC<TeacherAnnouncementsProps> = ({
                     title={`Delete ${announcement.title}`}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  </button>}
                 </div>
               </li>
             ))}

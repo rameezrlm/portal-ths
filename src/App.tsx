@@ -9,14 +9,23 @@ import { TeacherGradebook } from './components/TeacherGradebook';
 import { StudentGradebook } from './components/StudentGradebook';
 import { StudentProfile } from './components/StudentProfile';
 import { TeacherProfile } from './components/TeacherProfile';
+import { TeacherOverview } from './components/TeacherOverview';
+import { TimetablePreview } from './components/TimetablePreview';
 import { TeacherAssignments } from './components/TeacherAssignments';
 import { StudentAssignments } from './components/StudentAssignments';
 import { TeacherAnnouncements } from './components/TeacherAnnouncements';
 import { StudentAnnouncements } from './components/StudentAnnouncements';
+import { Timetable } from './components/Timetable';
+import { RoleSidebar } from './components/RoleSidebar';
+import { fetchPlatformSettings, readPlatformSettings, subscribePlatformSettings } from './services/platformSettingsService';
+import { announcementsForClass, fetchAnnouncements, markAnnouncementsSeen, readAnnouncementsLocal, subscribeAnnouncementUpdates, unreadAnnouncementCount } from './services/announcementService';
 import { StudentWebApps } from './components/StudentWebApps';
 import { AdminWebApps } from './components/AdminWebApps';
 import { StudentAttendance } from './components/StudentAttendance';
-import { CoursePicker } from './components/CoursePicker';
+import { TeacherLeaveRequests } from './components/TeacherLeaveRequests';
+import { CoursePicker, type CourseSection } from './components/CoursePicker';
+import { CourseWorkspaceNav } from './components/CourseWorkspaceNav';
+import { markCourseActivitySeen } from './utils/courseActivity';
 import { StudentFormModal } from './components/StudentFormModal';
 import { addStudent, fetchStudents } from './services/studentService';
 import { fetchTeachers } from './services/teacherService';
@@ -42,7 +51,6 @@ import type {
   LabClass,
 } from './types';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Megaphone, ClipboardList, BookOpen, CalendarCheck2, LayoutGrid, Globe2 } from 'lucide-react';
 
 function formatDateToISO(d: Date): string {
   const y = d.getFullYear();
@@ -77,6 +85,7 @@ export default function App() {
 
   // Session State
   const [session, setSession] = useState<UserSession | null>(() => getCurrentSession());
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => window.innerWidth >= 1024);
 
   // Today's date (teacher can only mark attendance of current day)
   const todayISO = useMemo(() => formatDateToISO(new Date()), []);
@@ -91,16 +100,18 @@ export default function App() {
 
   // Teacher workspace: Gradebook or existing Attendance section
   const [teacherView, setTeacherView] = useState<
-    'gradebook' | 'assignments' | 'attendance' | 'announcements' | 'apps' | 'profile'
-  >('announcements');
+    'courses' | 'timetable' | 'gradebook' | 'assignments' | 'attendance' | 'announcements' | 'apps' | 'profile'
+  >('courses');
   const [studentView, setStudentView] = useState<
+    | 'courses'
+    | 'timetable'
     | 'gradebook'
     | 'assignments'
     | 'attendance'
     | 'apps'
     | 'announcements'
     | 'profile'
-  >('announcements');
+  >('courses');
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [myClasses, setMyClasses] = useState<LabClass[]>(() => {
     if (session?.role !== 'student' || !session.studentId) return [];
@@ -109,6 +120,13 @@ export default function App() {
   const [classesLoading, setClassesLoading] = useState(false);
   const [teacherId, setTeacherId] = useState<string | undefined>(session?.teacherId);
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [announcementItems, setAnnouncementItems] = useState(readAnnouncementsLocal);
+  const [platformSettings, setPlatformSettings] = useState(readPlatformSettings);
+  useEffect(() => { void fetchPlatformSettings().then(setPlatformSettings).catch(console.error); return subscribePlatformSettings(() => setPlatformSettings(readPlatformSettings())); }, []);
+  useEffect(() => {
+    void fetchAnnouncements().then(setAnnouncementItems).catch(console.error);
+    return subscribeAnnouncementUpdates(() => setAnnouncementItems(readAnnouncementsLocal()));
+  }, []);
 
   // Modals state for Teacher
   const [isMonthlyReportOpen, setIsMonthlyReportOpen] = useState(false);
@@ -281,8 +299,9 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
-    logoutUser();
+  const handleLogout = async () => {
+    try { await logoutUser(); }
+    catch (error) { showToast('error', error instanceof Error ? error.message : 'Could not sign out. Please try again.'); return; }
     setSession(null);
     setSelectedClassId(null);
     setMyClasses([]);
@@ -307,10 +326,10 @@ export default function App() {
   const handleGoHome = () => {
     setSelectedClassId(null);
     if (session?.role === 'student') {
-      setStudentView('announcements');
+      setStudentView('courses');
     }
     if (session?.role === 'teacher') {
-      setTeacherView('announcements');
+      setTeacherView('courses');
     }
   };
 
@@ -331,6 +350,23 @@ export default function App() {
 
   const todayDisplay = formatDateToDisplay(todayISO);
   const currentDateObj = new Date();
+  const announcementUserKey = `${session.role}_${session.studentId || session.teacherId || session.email}`;
+  const announcementBadge = unreadAnnouncementCount(announcementItems, `${announcementUserKey}_global`, []);
+  const courseAnnouncementBadge = (classId: string) => unreadAnnouncementCount(announcementItems, `${announcementUserKey}_course_${classId}`, [classId]);
+  const courseAnnouncementCount = (classId: string) => announcementsForClass(announcementItems, classId).length;
+  const openAnnouncementView = (role: 'teacher' | 'student', classId?: string) => {
+    markAnnouncementsSeen(classId ? `${announcementUserKey}_course_${classId}` : `${announcementUserKey}_global`);
+    setAnnouncementItems([...readAnnouncementsLocal()]);
+    if (role === 'teacher') setTeacherView('announcements'); else setStudentView('announcements');
+  };
+  const openCourseSection = (role: 'teacher' | 'student', classId: string, section: CourseSection) => {
+    setSelectedClassId(classId);
+    if (section === 'announcements') openAnnouncementView(role, classId);
+    else {
+      if (section === 'assignments' || section === 'gradebook') markCourseActivitySeen(announcementUserKey, classId, section);
+      if (role === 'teacher') setTeacherView(section); else setStudentView(section);
+    }
+  };
 
   // 2. Admin Role: Show Admin Dashboard
   if (session.role === 'admin') {
@@ -346,36 +382,47 @@ export default function App() {
   // 3. Student Role: View own marks, grouped by section
   if (session.role === 'student') {
     return (
-      <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col antialiased">
+      <div className="role-dashboard app-shell min-h-screen text-slate-800 flex flex-col antialiased">
         <Header
           session={session}
-          onLogout={handleLogout}
           onGoHome={handleGoHome}
-          todayDisplay={todayDisplay}
+          onLogout={handleLogout}
+          onToggleSidebar={() => setSidebarExpanded(value => !value)}
+          isSidebarExpanded={sidebarExpanded}
           onOpenProfile={() => setStudentView('profile')}
           isProfileActive={studentView === 'profile'}
         />
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-          {!selectedClassId && studentView !== 'profile' ? (
-            <CoursePicker
-              classes={myClasses}
-              roleLabel="student"
-              studentId={session.studentId}
-              isLoading={classesLoading}
-              onSelect={(classId) => {
-                setSelectedClassId(classId);
-                setStudentView('announcements');
-              }}
-            />
+        <RoleSidebar role="student" settings={platformSettings} active={studentView} badge={announcementBadge} expanded={sidebarExpanded} profileName={session.name} profileImageUrl={session.profileImageUrl} onClose={() => setSidebarExpanded(false)} onSelect={id => {
+          if (id === 'courses') { setSelectedClassId(null); setStudentView('courses'); }
+          else if (id === 'announcements') { setSelectedClassId(null); openAnnouncementView('student'); }
+          else if (id === 'apps') { setSelectedClassId(null); setStudentView('apps'); }
+          else if (id !== 'apps' || platformSettings.studentsCanOpenApps) setStudentView(id as typeof studentView);
+        }} />
+        <main className="role-dashboard-main flex-1 w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+          {studentView === 'timetable' ? <Timetable role="student" classes={myClasses} /> : studentView === 'apps' && platformSettings.studentsCanOpenApps ? <StudentWebApps /> : studentView === 'announcements' && !selectedClassId ? <StudentAnnouncements classId="" /> : !selectedClassId && studentView !== 'profile' ? (
+            <div className="space-y-6">
+              <CoursePicker
+                afterStudentInfo={<TimetablePreview role="student" compact classes={myClasses} onOpen={() => setStudentView('timetable')} />}
+                classes={myClasses}
+                roleLabel="student"
+                studentId={session.studentId}
+                isLoading={classesLoading}
+                unreadCountForCourse={courseAnnouncementBadge}
+                announcementCountForCourse={courseAnnouncementCount}
+                activityUserKey={announcementUserKey}
+                onSelect={(classId, section) => openCourseSection('student', classId, section)}
+              />
+            </div>
           ) : (
             <>
           {selectedClassId && studentView !== 'profile' && (
+            <div className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedClassId(null);
-                  setStudentView('announcements');
+                  setStudentView('courses');
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
               >
@@ -384,85 +431,21 @@ export default function App() {
               </button>
               <span className="text-xs font-bold text-slate-800">{selectedClass?.name}</span>
             </div>
-          )}
-
-          {selectedClassId && studentView !== 'profile' && (
-          <div
-            id="student-workspace-tabs"
-            className="inline-flex flex-wrap p-1 bg-white border border-slate-200 rounded-xl shadow-xs"
-          >
-            <button
-              id="tab-student-announcements"
-              type="button"
-              onClick={() => setStudentView('announcements')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                studentView === 'announcements'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <Megaphone className="mobile-nav-icon" aria-hidden="true" />
-              Announcements
-            </button>
-            <button
-              id="tab-student-assignments"
-              type="button"
-              onClick={() => setStudentView('assignments')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                studentView === 'assignments'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <ClipboardList className="mobile-nav-icon" aria-hidden="true" />
-              Submission
-            </button>
-            <button
-              id="tab-student-gradebook"
-              type="button"
-              onClick={() => setStudentView('gradebook')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                studentView === 'gradebook'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <BookOpen className="mobile-nav-icon" aria-hidden="true" />
-              Gradebook
-            </button>
-            <button
-              id="tab-student-attendance"
-              type="button"
-              onClick={() => setStudentView('attendance')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                studentView === 'attendance'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <CalendarCheck2 className="mobile-nav-icon" aria-hidden="true" />
-              Attendance
-            </button>
-            <button
-              id="tab-student-apps"
-              type="button"
-              onClick={() => setStudentView('apps')}
-              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                studentView === 'apps'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-              }`}
-            >
-              <LayoutGrid className="mobile-nav-icon" aria-hidden="true" />
-              Apps
-            </button>
-          </div>
+            <CourseWorkspaceNav className={selectedClass?.name || 'Course'} active={studentView as CourseSection} onSelect={section => openCourseSection('student', selectedClassId, section)} />
+            </div>
           )}
 
           {!session.studentId ? (
             <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-xs text-slate-500">
-              Your student account could not be loaded. Please sign out and sign in again.
+              <p>Your student account could not be loaded. Please sign out and sign in again.</p>
+              <button type="button" onClick={handleLogout} className="mt-3 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700">Sign out</button>
             </div>
+          ) : studentView === 'profile' ? (
+            <StudentProfile studentId={session.studentId} session={session} onImageUpdated={imageUrl => {
+              const updated = { ...session, profileImageUrl: imageUrl || undefined };
+              saveSession(updated);
+              setSession(updated);
+            }} />
           ) : selectedClassId ? (
             <>
               <div className={studentView === 'gradebook' ? '' : 'hidden'}>
@@ -489,14 +472,9 @@ export default function App() {
                 />
               </div>
               <div className={studentView === 'announcements' ? '' : 'hidden'}>
-                <StudentAnnouncements classId={selectedClassId} />
-              </div>
-              <div className={studentView === 'apps' ? '' : 'hidden'}>
-                <StudentWebApps />
+                <StudentAnnouncements classId={selectedClassId} classNames={Object.fromEntries(myClasses.map(item => [item.id, item.name]))} />
               </div>
             </>
-          ) : studentView === 'profile' ? (
-            <StudentProfile studentId={session.studentId} session={session} />
           ) : null}
             </>
           )}
@@ -510,7 +488,7 @@ export default function App() {
 
   // 4. Teacher Role: Gradebook + existing Attendance section
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col antialiased">
+    <div className="role-dashboard app-shell min-h-screen text-slate-800 flex flex-col antialiased">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -533,18 +511,25 @@ export default function App() {
       {/* Header */}
       <Header
         session={session}
-        onLogout={handleLogout}
         onGoHome={handleGoHome}
-        todayDisplay={todayDisplay}
+        onLogout={handleLogout}
+        onToggleSidebar={() => setSidebarExpanded(value => !value)}
+        isSidebarExpanded={sidebarExpanded}
         onOpenProfile={() =>
           setTeacherView((prev) => (prev === 'profile' ? 'announcements' : 'profile'))
         }
         isProfileActive={teacherView === 'profile'}
       />
 
+      <RoleSidebar role="teacher" settings={platformSettings} active={teacherView} badge={announcementBadge} expanded={sidebarExpanded} profileName={session.name} profileImageUrl={session.profileImageUrl} onClose={() => setSidebarExpanded(false)} onSelect={id => {
+        if (id === 'courses') { setSelectedClassId(null); setTeacherView('courses'); }
+        else if (id === 'announcements') { setSelectedClassId(null); openAnnouncementView('teacher'); }
+        else if (id === 'apps') { setSelectedClassId(null); setTeacherView('apps'); }
+        else if (id !== 'apps' || platformSettings.teachersCanManageApps) setTeacherView(id as typeof teacherView);
+      }} />
       {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {teacherView === 'profile' && teacherId ? (
+      <main className="role-dashboard-main flex-1 w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6">
+        {teacherView === 'timetable' ? <Timetable role="teacher" classes={myClasses} teacherId={teacherId} /> : teacherView === 'apps' && platformSettings.teachersCanManageApps ? <AdminWebApps showToast={showToast} /> : teacherView === 'announcements' && !selectedClassId ? <StudentAnnouncements classId="" /> : teacherView === 'profile' && !teacherId ? <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600"><p>Your teacher account could not be loaded. Please sign out and sign in again.</p><button type="button" onClick={handleLogout} className="mt-3 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700">Sign out</button></div> : teacherView === 'profile' && teacherId ? (
           <TeacherProfile
             teacherId={teacherId}
             session={session}
@@ -555,23 +540,33 @@ export default function App() {
             }}
           />
         ) : !selectedClassId ? (
-          <CoursePicker
-            classes={myClasses}
-            roleLabel="teacher"
-            isLoading={classesLoading}
-            onSelect={(classId) => {
-              setSelectedClassId(classId);
-              setTeacherView('announcements');
-            }}
-          />
+          <div className="space-y-6">
+            <TeacherOverview
+              session={session}
+              teacherId={teacherId}
+              classes={myClasses}
+              isLoading={classesLoading}
+              onOpenTimetable={() => setTeacherView('timetable')}
+            />
+            <CoursePicker
+              classes={myClasses}
+              roleLabel="teacher"
+              isLoading={classesLoading}
+              unreadCountForCourse={courseAnnouncementBadge}
+              announcementCountForCourse={courseAnnouncementCount}
+              activityUserKey={announcementUserKey}
+              onSelect={(classId, section) => openCourseSection('teacher', classId, section)}
+            />
+          </div>
         ) : (
           <>
+        <div className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
             onClick={() => {
               setSelectedClassId(null);
-              setTeacherView('announcements');
+              setTeacherView('courses');
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
           >
@@ -580,76 +575,7 @@ export default function App() {
           </button>
           <span className="text-xs font-bold text-slate-800">{selectedClass?.name}</span>
         </div>
-
-        <div
-          id="teacher-workspace-tabs"
-          className="inline-flex flex-wrap p-1 bg-white border border-slate-200 rounded-xl shadow-xs"
-        >
-          <button
-            id="tab-announcements"
-            type="button"
-            onClick={() => setTeacherView('announcements')}
-            className={`px-5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              teacherView === 'announcements'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Megaphone className="mobile-nav-icon" aria-hidden="true" />
-            Announcements
-          </button>
-          <button
-            id="tab-assignments"
-            type="button"
-            onClick={() => setTeacherView('assignments')}
-            className={`px-5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              teacherView === 'assignments'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <ClipboardList className="mobile-nav-icon" aria-hidden="true" />
-            Submission
-          </button>
-          <button
-            id="tab-gradebook"
-            type="button"
-            onClick={() => setTeacherView('gradebook')}
-            className={`px-5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              teacherView === 'gradebook'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <BookOpen className="mobile-nav-icon" aria-hidden="true" />
-            Gradebook
-          </button>
-          <button
-            id="tab-attendance"
-            type="button"
-            onClick={() => setTeacherView('attendance')}
-            className={`px-5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              teacherView === 'attendance'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <CalendarCheck2 className="mobile-nav-icon" aria-hidden="true" />
-            Attendance
-          </button>
-          <button
-            id="tab-teacher-apps"
-            type="button"
-            onClick={() => setTeacherView('apps')}
-            className={`inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              teacherView === 'apps'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-          >
-            <Globe2 className="mobile-nav-icon" aria-hidden="true" />
-            Apps
-          </button>
+        <CourseWorkspaceNav className={selectedClass?.name || 'Course'} active={teacherView as CourseSection} onSelect={section => openCourseSection('teacher', selectedClassId, section)} />
         </div>
 
         {teacherView === 'gradebook' && (
@@ -680,18 +606,14 @@ export default function App() {
               classId={selectedClassId}
               session={session}
               showToast={showToast}
+              canPost={platformSettings.teachersCanPostAnnouncements}
             />
-          </section>
-        )}
-
-        {teacherView === 'apps' && (
-          <section id="section-teacher-apps" aria-label="Manage Student Web Apps">
-            <AdminWebApps showToast={showToast} />
           </section>
         )}
 
         {teacherView === 'attendance' && (
           <>
+            {teacherId && <TeacherLeaveRequests classId={selectedClassId} teacherId={teacherId} />}
             <section id="section-summary-cards" aria-label="Attendance Summary">
               <SummaryCards
                 summary={summary}

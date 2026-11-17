@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Mail, User } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertCircle, Camera, CheckCircle2, Eye, EyeOff, Mail, Trash2, User } from 'lucide-react';
 import type { Teacher, UserSession } from '../types';
 import {
   fetchTeachers,
@@ -7,6 +7,8 @@ import {
   getTeacherByIdLocal,
   updateTeacher,
 } from '../services/teacherService';
+import { removeTeacherProfilePicture, uploadTeacherProfilePicture, validateProfilePicture } from '../services/profilePictureService';
+import { StudentAvatar } from './StudentAvatar';
 
 interface TeacherProfileProps {
   teacherId: string;
@@ -29,6 +31,11 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [pictureBusy, setPictureBusy] = useState(false);
+  const [pictureNotice, setPictureNotice] = useState('');
+  const pictureInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +62,43 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({
       cancelled = true;
     };
   }, [teacherId]);
+  useEffect(() => {
+    if (!selectedFile) { setPreviewUrl(''); return; }
+    const url = URL.createObjectURL(selectedFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
+
+  const choosePicture = (file?: File) => {
+    setError(null); setPictureNotice('');
+    if (!file) return;
+    try { validateProfilePicture(file); setSelectedFile(file); }
+    catch (err) { setSelectedFile(null); if (pictureInput.current) pictureInput.current.value = ''; setError(err instanceof Error ? err.message : 'Invalid picture.'); }
+  };
+  const savePicture = async () => {
+    if (!selectedFile) return;
+    setPictureBusy(true); setError(null);
+    try {
+      const result = await uploadTeacherProfilePicture(teacherId, selectedFile);
+      setTeacher(current => current ? { ...current, profileImageUrl: result.imageUrl, profileImageFileId: result.fileId } : current);
+      onSessionUpdated({ ...session, profileImageUrl: result.imageUrl });
+      setSelectedFile(null);
+      if (pictureInput.current) pictureInput.current.value = '';
+      setPictureNotice(result.cleanupPending ? 'Picture saved. The old Drive image needs administrator cleanup.' : 'Profile picture saved.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not save picture.'); }
+    finally { setPictureBusy(false); }
+  };
+  const removePicture = async () => {
+    setPictureBusy(true); setError(null);
+    try {
+      const result = await removeTeacherProfilePicture(teacherId);
+      setTeacher(current => current ? { ...current, profileImageUrl: undefined, profileImageFileId: undefined } : current);
+      onSessionUpdated({ ...session, profileImageUrl: undefined });
+      setSelectedFile(null);
+      setPictureNotice(result.cleanupPending ? 'Picture removed. The Drive image needs administrator cleanup.' : 'Profile picture removed.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Could not remove picture.'); }
+    finally { setPictureBusy(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +151,7 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({
   };
 
   const displayName = teacher?.name || session.name;
+  const imageUrl = teacher ? teacher.profileImageUrl : session.profileImageUrl;
 
   return (
     <div id="teacher-profile" className="space-y-5 max-w-lg">
@@ -117,6 +162,22 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({
         </p>
       </div>
 
+      {error && <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700"><AlertCircle className="h-4 w-4 shrink-0" />{error}</p>}
+
+      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs sm:p-6" aria-label="Profile picture">
+        <div className="flex flex-wrap items-center gap-5">
+          {previewUrl ? <img src={previewUrl} alt="Selected profile picture preview" className="h-20 w-20 rounded-full object-cover ring-2 ring-emerald-200" /> : <StudentAvatar name={displayName} imageUrl={imageUrl} size="lg" />}
+          <div className="min-w-0 flex-1"><h3 className="text-sm font-bold text-slate-900">Profile picture</h3><p className="mt-1 text-xs text-slate-500">JPG, PNG, or WEBP · maximum 2 MB</p><div className="mt-3 flex flex-wrap gap-2">
+            <input ref={pictureInput} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" id="teacher-picture-input" onChange={event => choosePicture(event.target.files?.[0])} />
+            <button type="button" disabled={pictureBusy} onClick={() => pictureInput.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"><Camera className="h-3.5 w-3.5" />{imageUrl ? 'Change picture' : 'Choose picture'}</button>
+            {selectedFile && <button type="button" disabled={pictureBusy} onClick={() => void savePicture()} className="rounded-lg border border-emerald-300 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50">{pictureBusy ? 'Saving...' : 'Save picture'}</button>}
+            {selectedFile && <button type="button" disabled={pictureBusy} onClick={() => { setSelectedFile(null); if (pictureInput.current) pictureInput.current.value = ''; }} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600">Cancel</button>}
+            {imageUrl && !selectedFile && <button type="button" disabled={pictureBusy} onClick={() => void removePicture()} className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"><Trash2 className="h-3.5 w-3.5" />Remove</button>}
+          </div></div>
+        </div>
+        {pictureNotice && <p role="status" className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">{pictureNotice}</p>}
+      </section>
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 sm:p-6">
         {loadError && (
           <div className="mb-4 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
@@ -126,21 +187,12 @@ export const TeacherProfile: React.FC<TeacherProfileProps> = ({
         )}
 
         <div className="flex items-center gap-3 pb-5 mb-5 border-b border-slate-100">
-          <div className="w-11 h-11 rounded-full bg-emerald-700 text-white flex items-center justify-center text-sm font-bold">
-            {(displayName.charAt(0) || 'T').toUpperCase()}
-          </div>
+          <StudentAvatar name={displayName} imageUrl={imageUrl} size="md" />
           <div>
             <p className="text-sm font-bold text-slate-900">{displayName}</p>
             <p className="text-[11px] text-slate-400">Teacher profile</p>
           </div>
         </div>
-
-        {error && (
-          <div className="mb-4 p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

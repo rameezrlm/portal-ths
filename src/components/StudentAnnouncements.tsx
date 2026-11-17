@@ -11,11 +11,15 @@ import {
 
 interface StudentAnnouncementsProps {
   classId: string;
+  classNames?: Record<string, string>;
 }
 
-export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ classId }) => {
+export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ classId, classNames = {} }) => {
+  const visible = (list: Announcement[]) => classId
+    ? announcementsForClass(list, classId)
+    : list.filter(item => item.published !== false && !item.classId);
   const [announcements, setAnnouncements] = useState(() =>
-    announcementsForClass(readAnnouncementsLocal(), classId)
+    visible(readAnnouncementsLocal())
   );
   const [isLoading, setIsLoading] = useState(() => readAnnouncementsLocal().length === 0);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +28,7 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ clas
     if (!silent) setIsLoading(true);
     try {
       const list = await fetchAnnouncements();
-      setAnnouncements(announcementsForClass(list, classId));
+      setAnnouncements(visible(list));
       setError(null);
     } catch (err) {
       console.error('Failed to load announcements:', err);
@@ -35,10 +39,10 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ clas
   };
 
   useEffect(() => {
-    setAnnouncements(announcementsForClass(readAnnouncementsLocal(), classId));
+    setAnnouncements(visible(readAnnouncementsLocal()));
     void loadAnnouncements(readAnnouncementsLocal().length > 0);
     return subscribeAnnouncementUpdates(() => {
-      setAnnouncements(announcementsForClass(readAnnouncementsLocal(), classId));
+      setAnnouncements(visible(readAnnouncementsLocal()));
       void loadAnnouncements(true);
     });
   }, [classId]);
@@ -48,7 +52,7 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ clas
       <div>
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">Announcements</h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Notices posted by your teacher appear here.
+          {classId ? 'Notices for this course appear here.' : 'Platform announcements from administrators appear here.'}
         </p>
       </div>
 
@@ -68,13 +72,13 @@ export const StudentAnnouncements: React.FC<StudentAnnouncementsProps> = ({ clas
           <div className="p-12 text-center">
             <Megaphone className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-sm font-semibold text-slate-800">No announcements yet</p>
-            <p className="text-xs text-slate-400 mt-1">When your teacher posts one, it will show up here.</p>
+            <p className="text-xs text-slate-400 mt-1">{classId ? 'Course notices will appear here.' : 'Administrator announcements will appear here.'}</p>
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
             {announcements.map((announcement) => (
               <li key={announcement.id} className="p-5">
-                <p className="text-sm font-bold text-slate-900">{announcement.title}</p>
+                <div className="flex flex-wrap items-center gap-2"><p className="text-sm font-bold text-slate-900">{announcement.title}</p><span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">{announcement.classId ? classNames[announcement.classId] || 'Course' : 'Platform'}</span></div>
                 <p className="text-xs text-slate-700 mt-2 whitespace-pre-wrap bg-slate-50 border border-slate-100 rounded-lg px-3 py-2">
                   {announcement.message}
                 </p>

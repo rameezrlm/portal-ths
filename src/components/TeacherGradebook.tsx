@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { StudentAvatar } from './StudentAvatar';
 import {
   Plus,
   Save,
@@ -1098,7 +1099,7 @@ export const TeacherGradebook: React.FC<TeacherGradebookProps> = ({
                       return (
                       <tr key={student.id} className="hover:bg-slate-50/60">
                         <td className="py-2 px-4 sticky left-0 bg-white z-10 font-semibold text-slate-900 whitespace-nowrap">
-                          {student.name}
+                          <span className="flex items-center gap-2"><StudentAvatar name={student.name} imageUrl={student.profileImageUrl} size="sm" />{student.name}</span>
                         </td>
                         <td
                           className={`py-2 px-3 text-center border-l border-slate-100 sticky left-[160px] bg-white z-10 font-bold text-xs whitespace-nowrap ${percentColors.value}`}

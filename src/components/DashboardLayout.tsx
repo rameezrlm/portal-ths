@@ -6,8 +6,6 @@ import type { UserSession } from '../types';
 
 interface DashboardLayoutProps {
   session: UserSession;
-  onLogout: () => void;
-  todayDisplay: string;
   breadcrumb: string[];
   tabs?: WorkspaceTab[];
   activeTab?: string;
@@ -15,15 +13,12 @@ interface DashboardLayoutProps {
   tabsId?: string;
   onOpenProfile?: () => void;
   isProfileActive?: boolean;
-  roleLabel?: string;
   contentMaxWidth?: '3xl' | '7xl';
   children: React.ReactNode;
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   session,
-  onLogout,
-  todayDisplay,
   breadcrumb,
   tabs,
   activeTab,
@@ -31,20 +26,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   tabsId,
   onOpenProfile,
   isProfileActive,
-  roleLabel,
   contentMaxWidth = '7xl',
   children,
 }) => {
   const maxWidthClass = contentMaxWidth === '3xl' ? 'max-w-3xl' : 'max-w-7xl';
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 flex flex-col antialiased">
+    <div className="app-shell min-h-screen text-slate-800 flex flex-col antialiased">
       <Header
         session={session}
-        onLogout={onLogout}
-        todayDisplay={todayDisplay}
         onOpenProfile={onOpenProfile}
         isProfileActive={isProfileActive}
-        roleLabel={roleLabel}
       />
 
       <DashboardBreadcrumb items={breadcrumb} />

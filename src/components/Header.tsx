@@ -1,164 +1,73 @@
-import React, { useState } from 'react';
-import { LogOut } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { LogOut, UserRound } from 'lucide-react';
 import type { UserSession } from '../types';
+import { StudentAvatar } from './StudentAvatar';
 
 interface HeaderProps {
   session: UserSession;
-  onLogout: () => void;
   onGoHome?: () => void;
-  onOpenTeacherManagement?: () => void;
   onOpenProfile?: () => void;
+  onLogout?: () => void;
   isProfileActive?: boolean;
-  todayDisplay: string;
+  onToggleSidebar?: () => void;
+  isSidebarExpanded?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   session,
-  onLogout,
   onGoHome,
   onOpenProfile,
+  onLogout,
   isProfileActive = false,
-  todayDisplay,
+  onToggleSidebar,
+  isSidebarExpanded = false,
 }) => {
-  const displayName = session.name || session.email;
-  const initial = (displayName.charAt(0) || 'U').toUpperCase();
-  const [mobileAccountOpen, setMobileAccountOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRoot = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const firstItem = useRef<HTMLButtonElement>(null);
 
-  return (
-    <header id="app-header" className="sticky top-0 z-30 border-b border-emerald-900 bg-emerald-800 text-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-        {/* Left: Branding */}
-        {onGoHome ? (
-          <button
-            id="btn-go-home"
-            type="button"
-            onClick={onGoHome}
-            title="Go to home"
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg px-1 py-1 -ml-1 text-left cursor-pointer"
-          >
-            <div className="w-9 h-9 rounded-lg border border-slate-200 p-1 bg-white shadow-xs flex items-center justify-center shrink-0">
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-            </div>
-            <div className="header-brand-copy min-w-0">
-              <h1 className="truncate text-sm sm:text-base font-bold text-white leading-tight">
-                THS Tech labs LMS
-              </h1>
-              <p className="truncate whitespace-nowrap text-[11px] text-emerald-100 font-medium">
-                Taleem-O-Hunar Society
-              </p>
-            </div>
-          </button>
-        ) : (
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="w-9 h-9 rounded-lg border border-slate-200 p-1 bg-white shadow-xs flex items-center justify-center shrink-0">
-              <img
-                src="/logo.png"
-                alt="Logo"
-                className="w-full h-full object-contain"
-                referrerPolicy="no-referrer"
-                onError={(e) => {
-                  (e.currentTarget as HTMLElement).style.display = 'none';
-                }}
-              />
-            </div>
-            <div className="header-brand-copy min-w-0">
-              <h1 className="truncate text-sm sm:text-base font-bold text-white leading-tight">
-                THS Tech labs LMS
-              </h1>
-              <p className="truncate whitespace-nowrap text-[11px] text-emerald-100 font-medium">
-                Taleem-O-Hunar Society
-              </p>
-            </div>
-          </div>
-        )}
+  useEffect(() => {
+    if (!menuOpen) return;
+    firstItem.current?.focus();
+    const onPointerDown = (event: PointerEvent) => {
+      if (!menuRoot.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+        trigger.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [menuOpen]);
 
-        {/* Right: Date, Profile Avatar, Logout */}
-        <div className="flex shrink-0 items-center gap-2.5 sm:gap-4">
-          {/* Today Date */}
-          <span className="text-xs text-emerald-50 font-medium hidden md:inline">
-            {todayDisplay}
-          </span>
+  const brand = <>
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-1 shadow-xs">
+      <img src="/logo.png" alt="" className="h-full w-full object-contain" referrerPolicy="no-referrer" onError={event => { event.currentTarget.style.display = 'none'; }} />
+    </span>
+    <span className="header-brand-copy min-w-0">
+      <span className="block truncate text-sm font-bold leading-tight text-white sm:text-base">THS Tech labs LMS</span>
+      <span className="block truncate whitespace-nowrap text-[11px] font-medium text-emerald-100">Taleem-O-Hunar Society</span>
+    </span>
+  </>;
 
-          <div className="h-5 w-px bg-emerald-600 hidden sm:block" />
-
-          {onOpenProfile ? (
-            <button
-              id="user-profile-menu"
-              type="button"
-              onClick={() => {
-                if (window.matchMedia('(max-width: 767px)').matches) {
-                  setMobileAccountOpen((open) => !open);
-                } else {
-                  onOpenProfile();
-                }
-              }}
-              title={mobileAccountOpen ? 'Close account actions' : 'Account actions'}
-              aria-pressed={isProfileActive}
-              className={`flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg transition-colors cursor-pointer ${
-                isProfileActive
-                  ? 'bg-emerald-700 ring-1 ring-emerald-500'
-                  : 'hover:bg-emerald-700'
-              }`}
-            >
-              <div className="w-8 h-8 rounded-full bg-white text-emerald-900 flex items-center justify-center text-xs font-bold shadow-xs">
-                {initial}
-              </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-white max-w-[130px] truncate leading-tight">
-                  {displayName}
-                </p>
-                {session.role === 'student' && (
-                  <p className="text-[10px] text-emerald-100 font-medium">Student</p>
-                )}
-                {session.role === 'teacher' && (
-                  <p className="text-[10px] text-emerald-100 font-medium">Teacher</p>
-                )}
-              </div>
-            </button>
-          ) : (
-            <div
-              id="user-profile-menu"
-              className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg"
-            >
-              <div className="w-8 h-8 rounded-full bg-white text-emerald-900 flex items-center justify-center text-xs font-bold shadow-xs">
-                {initial}
-              </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-xs font-semibold text-white max-w-[130px] truncate leading-tight">
-                  {displayName}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Clean Logout */}
-          <button
-            id="btn-logout"
-            type="button"
-            onClick={onLogout}
-            className={`p-2 text-emerald-100 hover:text-white hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer${mobileAccountOpen ? ' mobile-account-logout' : ''}`}
-            title="Sign out"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-          {mobileAccountOpen && onOpenProfile && (
-            <div className="mobile-account-actions">
-              <button type="button" onClick={onLogout}>
-                <LogOut className="w-4 h-4" />
-                Sign out
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </header>
-  );
+  return <header id="app-header" className="sticky top-0 z-50 border-b border-emerald-900 bg-emerald-800 text-white shadow-sm">
+    <div className={`flex h-16 items-center gap-3 px-4 sm:gap-4 sm:px-6 lg:px-8 ${onToggleSidebar ? 'w-full' : 'mx-auto max-w-7xl'}`}>
+      {onToggleSidebar && <button type="button" className={`role-sidebar-header-toggle ${isSidebarExpanded ? 'is-open' : ''}`} aria-label={isSidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'} aria-expanded={isSidebarExpanded} onClick={onToggleSidebar}><span /><span /><span /></button>}
+      {onGoHome ? <button id="btn-go-home" type="button" onClick={onGoHome} title="My Courses" className="flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left cursor-pointer">{brand}</button> : <div className="flex min-w-0 flex-1 items-center gap-3">{brand}</div>}
+      {onOpenProfile && <div ref={menuRoot} className="relative shrink-0">
+        <button ref={trigger} id="user-profile-menu" type="button" onClick={() => setMenuOpen(open => !open)} aria-label="Account menu" aria-haspopup="menu" aria-expanded={menuOpen} aria-controls="account-menu" className={`grid h-9 w-9 place-items-center rounded-full bg-white text-emerald-800 transition-colors hover:bg-emerald-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-800 ${isProfileActive || menuOpen ? 'ring-2 ring-emerald-300' : ''}`}>{session.profileImageUrl ? <StudentAvatar name={session.name} imageUrl={session.profileImageUrl} size="sm" /> : <UserRound className="h-4 w-4" aria-hidden="true" />}</button>
+        {menuOpen && <div id="account-menu" role="menu" aria-label={`${session.role} account`} className="absolute right-0 top-full mt-2 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 text-slate-700 shadow-xl">
+          <button ref={firstItem} type="button" role="menuitem" onClick={() => { setMenuOpen(false); onOpenProfile(); }} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-xs font-semibold hover:bg-emerald-50 hover:text-emerald-800"><UserRound className="h-4 w-4" /> My Profile</button>
+          {onLogout && <><div className="my-1 border-t border-slate-100" /><button type="button" role="menuitem" onClick={() => { setMenuOpen(false); onLogout(); }} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-xs font-semibold hover:bg-red-50 hover:text-red-700"><LogOut className="h-4 w-4" /> Log out</button></>}
+        </div>}
+      </div>}
+    </div>
+  </header>;
 };

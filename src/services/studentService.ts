@@ -78,6 +78,8 @@ export async function fetchStudents(): Promise<Student[]> {
           email: data.email || '',
           contact: data.contact || '',
           password: data.password || '',
+          profileImageUrl: data.profileImageUrl || undefined,
+          profileImageFileId: data.profileImageFileId || undefined,
           createdAt: data.createdAt || new Date().toISOString(),
         });
       });
@@ -244,4 +246,14 @@ export async function updateStudentPassword(id: string, password: string): Promi
   }
 
   return updated;
+}
+
+export function updateStudentPictureCache(studentId: string, imageUrl?: string, fileId?: string): void {
+  saveLocalStudents(getLocalStudents().map(student => student.id === studentId
+    ? { ...student, profileImageUrl: imageUrl, profileImageFileId: fileId } : student));
+  window.dispatchEvent(new CustomEvent('it-lab-student-picture-changed', { detail: { studentId, imageUrl } }));
+}
+
+export function updateStudentPasswordCache(studentId: string, password: string): void {
+  saveLocalStudents(getLocalStudents().map(student => student.id === studentId ? { ...student, password } : student));
 }

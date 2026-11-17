@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { StudentAvatar } from './StudentAvatar';
 import {
   X,
   FileSpreadsheet,
@@ -273,9 +274,7 @@ export const MonthlyReportModal: React.FC<MonthlyReportModalProps> = ({
                         <td className="py-2.5 px-3 text-center text-slate-400 font-mono border-r border-slate-100">
                           {idx + 1}
                         </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-800 border-r border-slate-100 whitespace-nowrap">
-                          {student.name}
-                        </td>
+                        <td className="py-2.5 px-3 font-semibold text-slate-800 border-r border-slate-100 whitespace-nowrap"><div className="flex items-center gap-2"><StudentAvatar name={student.name} imageUrl={student.profileImageUrl} size="sm" />{student.name}</div></td>
                         <td className="py-2.5 px-3 text-slate-500 font-mono text-[11px] border-r border-slate-100 hidden md:table-cell whitespace-nowrap">
                           {student.email}
                         </td>

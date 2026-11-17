@@ -6,6 +6,7 @@ import {
   getAttendanceForStudentLocal,
 } from '../services/attendanceService';
 import { getMonthName } from '../services/excelService';
+import { StudentLeaveRequests } from './StudentLeaveRequests';
 
 interface StudentAttendanceProps {
   classId: string;
@@ -186,6 +187,8 @@ export const StudentAttendance: React.FC<StudentAttendanceProps> = ({
           </select>
         </div>
       </div>
+
+      <StudentLeaveRequests classId={classId} studentId={studentId} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-white rounded-xl border border-slate-200 p-3 shadow-xs">
