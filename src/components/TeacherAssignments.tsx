@@ -18,6 +18,7 @@ interface TeacherAssignmentsProps {
   classId: string;
   session: UserSession;
   showToast: (type: 'success' | 'error', message: string) => void;
+  readOnly?: boolean;
 }
 
 function UploadProgress({ percent }: { percent: number }) {
@@ -41,6 +42,7 @@ export const TeacherAssignments: React.FC<TeacherAssignmentsProps> = ({
   classId,
   session,
   showToast,
+  readOnly = false,
 }) => {
   const [assignments, setAssignments] = useState<AssignmentMaterial[]>([]);
   const [submissions, setSubmissions] = useState<AssignmentSubmission[]>([]);
@@ -161,10 +163,11 @@ export const TeacherAssignments: React.FC<TeacherAssignmentsProps> = ({
       <div>
         <h2 className="text-lg font-bold text-slate-900 tracking-tight">Submissions</h2>
         <p className="text-xs text-slate-500 mt-0.5">
-          Upload a document or slides, add a description, and set when student submission closes.
+          {readOnly ? 'Review course files and download student submissions.' : 'Upload a document or slides, add a description, and set when student submission closes.'}
         </p>
       </div>
 
+      {!readOnly && (
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs p-5 sm:p-6">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2 mb-4">
           <Upload className="w-4 h-4 text-indigo-600" />
@@ -267,6 +270,7 @@ export const TeacherAssignments: React.FC<TeacherAssignmentsProps> = ({
           </div>
         </form>
       </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100">
@@ -333,7 +337,7 @@ export const TeacherAssignments: React.FC<TeacherAssignmentsProps> = ({
                       >
                         Download
                       </button>
-                      <button
+                      {!readOnly && <button
                         type="button"
                         disabled={deletingId === assignment.id}
                         onClick={() => handleDelete(assignment)}
@@ -341,7 +345,7 @@ export const TeacherAssignments: React.FC<TeacherAssignmentsProps> = ({
                         title={`Delete ${assignment.title}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      </button>}
                     </div>
                   </div>
 

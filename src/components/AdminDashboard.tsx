@@ -41,7 +41,7 @@ import { AdminAnnouncements } from './AdminAnnouncements';
 import { Timetable } from './Timetable';
 import { AdminSettings } from './AdminSettings';
 import { fetchClasses } from '../services/classService';
-import type { LabClass, Student, Teacher, UserSession } from '../types';
+import type { CourseAccessPermission, LabClass, Student, Teacher, UserSession } from '../types';
 
 interface AdminDashboardProps {
   session: UserSession;
@@ -50,6 +50,12 @@ interface AdminDashboardProps {
 }
 
 type AdminViewMode = 'overview' | 'classes' | 'students' | 'teachers' | 'attendance' | 'apps' | 'announcements' | 'timetable' | 'settings';
+const USER_ACCESS_OPTIONS: { id: CourseAccessPermission; label: string }[] = [
+  { id: 'announcements', label: 'Announcements' },
+  { id: 'assignments', label: 'Submissions' },
+  { id: 'gradebook', label: 'Gradebook' },
+  { id: 'attendance', label: 'Attendance' },
+];
 
 const AdminQuickTabs: React.FC<{
   viewMode: AdminViewMode;
@@ -137,6 +143,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [teacherName, setTeacherName] = useState('');
   const [teacherEmail, setTeacherEmail] = useState('');
   const [teacherPassword, setTeacherPassword] = useState('');
+  const [teacherAccountType, setTeacherAccountType] = useState<'teacher' | 'user'>('teacher');
+  const [teacherPermissions, setTeacherPermissions] = useState<CourseAccessPermission[]>(['assignments']);
   const [showTeacherPassword, setShowTeacherPassword] = useState(false);
   const [isSubmittingTeacher, setIsSubmittingTeacher] = useState(false);
   const [teacherError, setTeacherError] = useState<string | null>(null);
@@ -145,6 +153,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editTeacherName, setEditTeacherName] = useState('');
   const [editTeacherEmail, setEditTeacherEmail] = useState('');
   const [editTeacherPassword, setEditTeacherPassword] = useState('');
+  const [editTeacherAccountType, setEditTeacherAccountType] = useState<'teacher' | 'user'>('teacher');
+  const [editTeacherPermissions, setEditTeacherPermissions] = useState<CourseAccessPermission[]>([]);
   const [showEditTeacherPassword, setShowEditTeacherPassword] = useState(false);
   const [isUpdatingTeacher, setIsUpdatingTeacher] = useState(false);
   const [editTeacherError, setEditTeacherError] = useState<string | null>(null);
@@ -308,6 +318,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setTeacherError('Please fill in name, email, and password.');
       return;
     }
+    if (teacherAccountType === 'user' && teacherPermissions.length === 0) {
+      setTeacherError('Choose at least one section for this user.');
+      return;
+    }
 
     if (password.length < 4) {
       setTeacherError('Password must be at least 4 characters.');
@@ -321,13 +335,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     try {
       setIsSubmittingTeacher(true);
-      const newTeacher = await addTeacher(name, email, password);
+      const newTeacher = await addTeacher(name, email, password, teacherAccountType, teacherPermissions);
       setTeachers((prev) => [...prev, newTeacher]);
       setTeacherName('');
       setTeacherEmail('');
       setTeacherPassword('');
       setIsAddTeacherModalOpen(false);
-      showToast('success', `Teacher "${name}" added successfully.`);
+      showToast('success', `${teacherAccountType === 'user' ? 'User' : 'Teacher'} "${name}" added successfully.`);
     } catch {
       setTeacherError('Failed to add teacher. Please try again.');
     } finally {
@@ -340,6 +354,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setEditTeacherName(teacher.name);
     setEditTeacherEmail(teacher.email);
     setEditTeacherPassword(teacher.password);
+    setEditTeacherAccountType(teacher.accountType || 'teacher');
+    setEditTeacherPermissions(teacher.permissions || ['assignments']);
     setEditTeacherError(null);
     setShowEditTeacherPassword(false);
   };
@@ -357,6 +373,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setEditTeacherError('Please fill in name, email, and password.');
       return;
     }
+    if (editTeacherAccountType === 'user' && editTeacherPermissions.length === 0) {
+      setEditTeacherError('Choose at least one section for this user.');
+      return;
+    }
 
     if (password.length < 4) {
       setEditTeacherError('Password must be at least 4 characters.');
@@ -370,10 +390,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     try {
       setIsUpdatingTeacher(true);
-      const updated = await updateTeacher(teacherToEdit.id, name, email, password);
+      const updated = await updateTeacher(teacherToEdit.id, name, email, password, editTeacherAccountType, editTeacherPermissions);
       setTeachers((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       setTeacherToEdit(null);
-      showToast('success', `Teacher "${name}" updated successfully.`);
+      showToast('success', `${editTeacherAccountType === 'user' ? 'User' : 'Teacher'} "${name}" updated successfully.`);
     } catch {
       setEditTeacherError('Failed to update teacher. Please try again.');
     } finally {
@@ -943,7 +963,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex items-center gap-1 text-xs">
                   <span className="text-slate-400">Admin</span>
                   <span className="text-slate-300">/</span>
-                  <span className="font-semibold text-slate-800">Teachers Management</span>
+                  <span className="font-semibold text-slate-800">Teachers & Users</span>
                 </div>
               </div>
 
@@ -962,13 +982,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="p-5 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <span>Instructors & Faculty</span>
+                    <span>Teachers & Restricted Users</span>
                     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                       {teachers.length}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Register instructor accounts, update passwords, or delete access.
+                    Create teacher accounts or give users access to selected course sections.
                   </p>
                 </div>
 
@@ -977,7 +997,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Search teachers..."
+                      placeholder="Search teachers and users..."
                       value={teacherSearch}
                       onChange={(e) => setTeacherSearch(e.target.value)}
                       className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -991,6 +1011,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       setTeacherName('');
                       setTeacherEmail('');
                       setTeacherPassword('');
+                      setTeacherAccountType('teacher');
+                      setTeacherPermissions(['assignments']);
                       setShowTeacherPassword(false);
                       setTeacherError(null);
                       setIsAddTeacherModalOpen(true);
@@ -998,7 +1020,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors shrink-0 cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
-                    <span>Add Teacher</span>
+                    <span>Add Account</span>
                   </button>
                 </div>
               </div>
@@ -1030,7 +1052,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <thead>
                       <tr className="bg-slate-50 text-slate-500 border-b border-slate-200 uppercase tracking-wider font-semibold text-[10px]">
                         <th className="py-3 px-4 w-12 text-center">#</th>
-                        <th className="py-3 px-4">Instructor Name</th>
+                        <th className="py-3 px-4">Name / Role</th>
                         <th className="py-3 px-4">Email Login</th>
                         <th className="py-3 px-4">Password</th>
                         <th className="py-3 px-4 text-right">Actions</th>
@@ -1045,7 +1067,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               {idx + 1}
                             </td>
                             <td className="py-3 px-4 font-semibold text-slate-900">
-                              <span className="flex items-center gap-2"><StudentAvatar name={teacher.name} imageUrl={teacher.profileImageUrl} size="sm" />{teacher.name}</span>
+                              <span className="flex items-center gap-2"><StudentAvatar name={teacher.name} imageUrl={teacher.profileImageUrl} size="sm" />{teacher.name}<span title={teacher.accountType === 'user' ? `Access: ${(teacher.permissions || []).map(permission => USER_ACCESS_OPTIONS.find(option => option.id === permission)?.label || permission).join(', ')}` : 'Full instructor access'} className={`rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase ${teacher.accountType === 'user' ? 'border-violet-200 bg-violet-50 text-violet-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>{teacher.accountType === 'user' ? 'User' : 'Teacher'}</span></span>
                             </td>
                             <td className="py-3 px-4 text-slate-600 font-mono text-[11px]">
                               {teacher.email}
@@ -1452,15 +1474,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           id="modal-add-teacher-overlay"
           className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-h-[92vh] max-w-md w-full overflow-y-auto p-6 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <UserPlus className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Add New Teacher</h3>
-                  <p className="text-[11px] text-slate-400">Register faculty login credentials</p>
+                  <h3 className="text-sm font-bold text-slate-900">Add Account</h3>
+                  <p className="text-[11px] text-slate-400">Choose a teacher or restricted user account</p>
                 </div>
               </div>
               <button
@@ -1480,9 +1502,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
 
             <form onSubmit={handleAddTeacherSubmit} className="mt-4 space-y-4">
+              <label className="block text-xs font-semibold text-slate-700">Account type
+                <select value={teacherAccountType} onChange={event => setTeacherAccountType(event.target.value as 'teacher' | 'user')} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">
+                  <option value="teacher">Teacher (full instructor access)</option>
+                  <option value="user">User (selected course sections only)</option>
+                </select>
+              </label>
+              {teacherAccountType === 'user' && <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3"><legend className="px-1 text-xs font-bold text-slate-800">Sections this user can access</legend><div className="grid grid-cols-2 gap-2">{USER_ACCESS_OPTIONS.map(option => <label key={option.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-slate-700"><input type="checkbox" checked={teacherPermissions.includes(option.id)} onChange={event => setTeacherPermissions(current => event.target.checked ? [...current, option.id] : current.filter(value => value !== option.id))} className="accent-emerald-700" />{option.label}</label>)}</div><p className="mt-2 text-[10px] text-slate-500">The user can open only the selected tabs within available courses.</p></fieldset>}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Instructor Name
+                  Full Name
                 </label>
                 <input
                   type="text"
@@ -1551,7 +1580,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  <span>{isSubmittingTeacher ? 'Adding...' : 'Add Teacher'}</span>
+                  <span>{isSubmittingTeacher ? 'Adding...' : teacherAccountType === 'user' ? 'Add User' : 'Add Teacher'}</span>
                 </button>
               </div>
             </form>
@@ -1565,7 +1594,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           id="modal-edit-teacher-overlay"
           className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
         >
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200">
+          <div className="bg-white rounded-2xl max-h-[92vh] max-w-md w-full overflow-y-auto p-6 shadow-xl border border-slate-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
@@ -1593,6 +1622,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
 
             <form onSubmit={handleUpdateTeacherSubmit} className="mt-4 space-y-4">
+              <label className="block text-xs font-semibold text-slate-700">Account type
+                <select value={editTeacherAccountType} onChange={event => setEditTeacherAccountType(event.target.value as 'teacher' | 'user')} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs">
+                  <option value="teacher">Teacher (full instructor access)</option>
+                  <option value="user">User (selected course sections only)</option>
+                </select>
+              </label>
+              {editTeacherAccountType === 'user' && <fieldset className="rounded-xl border border-slate-200 bg-slate-50 p-3"><legend className="px-1 text-xs font-bold text-slate-800">Sections this user can access</legend><div className="grid grid-cols-2 gap-2">{USER_ACCESS_OPTIONS.map(option => <label key={option.id} className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-xs font-medium text-slate-700"><input type="checkbox" checked={editTeacherPermissions.includes(option.id)} onChange={event => setEditTeacherPermissions(current => event.target.checked ? [...current, option.id] : current.filter(value => value !== option.id))} className="accent-emerald-700" />{option.label}</label>)}</div><p className="mt-2 text-[10px] text-slate-500">The user can open only the selected tabs within available courses.</p></fieldset>}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Instructor Name

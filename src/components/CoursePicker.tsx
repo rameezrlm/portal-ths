@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { BookOpen, ClipboardList, GraduationCap, Megaphone, Users, UserRound } from 'lucide-react';
 import type { LabClass, Teacher } from '../types';
+import type { CourseAccessPermission } from '../types';
 import { StudentAcademicStandings } from './StudentAcademicStandings';
 import { fetchTeachers, readTeachersLocal } from '../services/teacherService';
 import { fetchAssignments, fetchAssignmentSubmissions, readAssignmentsLocal, readAssignmentSubmissionsLocal } from '../services/assignmentService';
@@ -11,7 +12,8 @@ export type CourseSection = 'announcements' | 'assignments' | 'gradebook' | 'att
 
 interface CoursePickerProps {
   classes: LabClass[];
-  roleLabel: 'teacher' | 'student';
+  roleLabel: 'teacher' | 'student' | 'user';
+  visibleSections?: CourseAccessPermission[];
   studentId?: string;
   isLoading?: boolean;
   unreadCountForCourse?: (classId: string) => number;
@@ -24,6 +26,7 @@ interface CoursePickerProps {
 export const CoursePicker: React.FC<CoursePickerProps> = ({
   classes,
   roleLabel,
+  visibleSections,
   studentId,
   isLoading = false,
   unreadCountForCourse,
@@ -95,9 +98,9 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
           assignments: readCourseActivitySeen(activityUserKey, course.id, 'assignments'),
           gradebook: readCourseActivitySeen(activityUserKey, course.id, 'gradebook'),
         });
-        const newUploads = roleLabel === 'teacher' ? summary.newSubmissions : summary.newAssignments;
+        const newUploads = roleLabel !== 'student' ? summary.newSubmissions : summary.newAssignments;
         const newCount = unread + newUploads + summary.newGrades;
-        const metrics = roleLabel === 'teacher' ? [
+        const allMetrics = roleLabel !== 'student' ? [
           { label: 'Notices', count: noticeCount, fresh: unread, icon: Megaphone },
           { label: 'Assignments', count: summary.assignments, fresh: 0, icon: ClipboardList },
           { label: 'Submissions', count: summary.submissions, fresh: summary.newSubmissions, icon: ClipboardList },
@@ -107,6 +110,9 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
           { label: 'Assignments', count: summary.assignments, fresh: summary.newAssignments, icon: ClipboardList },
           { label: 'Grades', count: summary.grades, fresh: summary.newGrades, icon: GraduationCap },
         ];
+        const metrics = allMetrics.filter(metric => roleLabel !== 'user' || visibleSections?.includes(
+          metric.label === 'Notices' ? 'announcements' : metric.label === 'Submissions' ? 'assignments' : 'gradebook'
+        ));
         return <article
           key={course.id}
           id={`course-card-${course.id}`}
@@ -115,7 +121,10 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
         >
           <button
             type="button"
-            onClick={() => onSelect(course.id, 'announcements')}
+            onClick={() => {
+              if (roleLabel === 'user' && !visibleSections?.length) return;
+              onSelect(course.id, roleLabel === 'user' ? visibleSections![0] : 'announcements');
+            }}
             className="group flex h-full w-full flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-inset"
             aria-label={`Open ${course.name}`}
           >
@@ -126,7 +135,7 @@ export const CoursePicker: React.FC<CoursePickerProps> = ({
             <span className="flex w-full flex-1 flex-col px-4 py-3">
               <span className="flex items-start gap-1.5 text-[11px] leading-relaxed text-slate-600"><UserRound className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700" aria-hidden="true" /><span className="line-clamp-2">{assignedTeachers.length ? assignedTeachers.map(teacher => teacher.name).join(', ') : 'Instructor not assigned'}</span></span>
               <span className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-500"><Users className="h-3.5 w-3.5" aria-hidden="true" />{course.studentIds.length} students</span>
-              <span className={`mt-4 grid gap-1.5 ${roleLabel === 'teacher' ? 'grid-cols-2' : 'grid-cols-3'}`}>
+              <span className={`mt-4 grid gap-1.5 ${roleLabel !== 'student' ? 'grid-cols-2' : 'grid-cols-3'}`}>
                 {metrics.map(({ label, count, fresh, icon: Icon }) => <span key={label} className="min-w-0 border border-slate-100 bg-slate-50 px-2 py-2">
                   <span className="flex items-center justify-between gap-1 text-slate-500"><Icon className="h-3 w-3 shrink-0" aria-hidden="true" />{fresh > 0 && <span className="rounded-sm bg-emerald-100 px-1 text-[9px] font-bold text-emerald-800">{fresh} new</span>}</span>
                   <span className="mt-1 block text-base font-bold leading-none text-slate-900">{count}</span>

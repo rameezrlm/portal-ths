@@ -48,8 +48,12 @@ export interface Teacher {
   password?: string;
   profileImageUrl?: string;
   profileImageFileId?: string;
+  accountType?: 'teacher' | 'user';
+  permissions?: CourseAccessPermission[];
   createdAt: string;
 }
+
+export type CourseAccessPermission = 'announcements' | 'assignments' | 'gradebook' | 'attendance';
 
 export interface LeaveRequest {
   id: string;
@@ -67,12 +71,13 @@ export interface LeaveRequest {
 }
 
 export interface UserSession {
-  role: 'admin' | 'teacher' | 'student';
+  role: 'admin' | 'teacher' | 'student' | 'user';
   name: string;
   email: string;
   teacherId?: string;
   studentId?: string;
   profileImageUrl?: string;
+  permissions?: CourseAccessPermission[];
 }
 
 /** Admin-created course/class with assigned teachers and students. */

@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarCheck2, ClipboardList, GraduationCap, Megaphone } from 'lucide-react';
 import type { CourseSection } from './CoursePicker';
+import type { CourseAccessPermission } from '../types';
 
 const tabs = [
   { id: 'announcements', label: 'Announcements', icon: Megaphone },
@@ -13,8 +14,9 @@ export const CourseWorkspaceNav: React.FC<{
   className: string;
   active: CourseSection;
   onSelect: (section: CourseSection) => void;
-}> = ({ className, active, onSelect }) => <nav aria-label={`${className} navigation`} className="course-workspace-nav grid grid-cols-2 gap-1 border-b border-slate-200 bg-white px-2 pt-2 sm:flex sm:flex-wrap sm:px-3">
-  {tabs.map(({ id, label, icon: Icon }) => <button
+  visibleSections?: CourseAccessPermission[];
+}> = ({ className, active, onSelect, visibleSections }) => <nav aria-label={`${className} navigation`} className="course-workspace-nav grid grid-cols-2 gap-1 border-b border-slate-200 bg-white px-2 pt-2 sm:flex sm:flex-wrap sm:px-3">
+  {tabs.filter(({ id }) => !visibleSections || visibleSections.includes(id)).map(({ id, label, icon: Icon }) => <button
     key={id}
     type="button"
     onClick={() => onSelect(id)}

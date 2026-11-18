@@ -5,15 +5,15 @@ import type { PlatformSettings } from '../services/platformSettingsService';
 import { StudentAvatar } from './StudentAvatar';
 
 type NavItem = { id: string; label: string; icon: LucideIcon; badge?: number };
-type Props = { role: 'teacher' | 'student'; active: string; badge: number; settings: PlatformSettings; expanded: boolean; profileName?: string; profileImageUrl?: string; onClose: () => void; onSelect: (id: string) => void };
+type Props = { role: 'teacher' | 'student' | 'user'; active: string; badge: number; settings: PlatformSettings; expanded: boolean; profileName?: string; profileImageUrl?: string; onClose: () => void; onSelect: (id: string) => void };
 export const RoleSidebar: React.FC<Props> = ({ role, active, badge, settings, expanded, profileName, profileImageUrl, onClose, onSelect }) => {
-  const appsAvailable = role === 'teacher' ? settings.teachersCanManageApps : settings.studentsCanOpenApps;
+  const appsAvailable = role === 'teacher' ? settings.teachersCanManageApps : role === 'student' && settings.studentsCanOpenApps;
   const items: NavItem[] = [
     { id: 'courses', label: 'My Courses', icon: BookOpen },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, badge },
-    { id: 'timetable', label: 'Timetable', icon: CalendarDays },
+    ...(role === 'user' ? [] : [{ id: 'announcements', label: 'Announcements', icon: Megaphone, badge }]),
+    ...(role === 'user' ? [] : [{ id: 'timetable', label: 'Timetable', icon: CalendarDays }]),
     ...(appsAvailable ? [{ id: 'apps', label: 'Apps', icon: Globe2 }] : []),
-    { id: 'profile', label: 'Profile', icon: UserRound },
+    ...(role === 'user' ? [] : [{ id: 'profile', label: 'Profile', icon: UserRound }]),
   ];
   return <>
     {expanded && <button type="button" className="role-sidebar-scrim" aria-label="Close navigation" onClick={onClose} />}

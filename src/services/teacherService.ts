@@ -1,7 +1,7 @@
 import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../firebase/firebaseConfig';
 import { fetchStudents } from './studentService';
-import type { Teacher, UserSession } from '../types';
+import type { CourseAccessPermission, Teacher, UserSession } from '../types';
 
 const TEACHERS_STORAGE_KEY = 'it_lab_teachers';
 const SESSION_STORAGE_KEY = 'it_lab_auth_session';
@@ -66,6 +66,8 @@ export async function fetchTeachers(): Promise<Teacher[]> {
             password: data.password || '',
             profileImageUrl: data.profileImageUrl || undefined,
             profileImageFileId: data.profileImageFileId || undefined,
+            accountType: data.accountType === 'user' ? 'user' : 'teacher',
+            permissions: Array.isArray(data.permissions) ? data.permissions as CourseAccessPermission[] : undefined,
             createdAt: data.createdAt || new Date().toISOString(),
           });
         });
@@ -97,12 +99,14 @@ export async function fetchTeachers(): Promise<Teacher[]> {
   return getLocalTeachers();
 }
 
-export async function addTeacher(name: string, email: string, password: string): Promise<Teacher> {
+export async function addTeacher(name: string, email: string, password: string, accountType: 'teacher' | 'user' = 'teacher', permissions: CourseAccessPermission[] = []): Promise<Teacher> {
   const newTeacher: Teacher = {
     id: `t_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     name: name.trim(),
     email: email.trim().toLowerCase(),
     password: password.trim(),
+    accountType,
+    ...(accountType === 'user' ? { permissions } : {}),
     createdAt: new Date().toISOString(),
   };
 
@@ -138,19 +142,25 @@ export async function updateTeacher(
   id: string,
   name: string,
   email: string,
-  password?: string
+  password?: string,
+  accountType?: 'teacher' | 'user',
+  permissions?: CourseAccessPermission[]
 ): Promise<Teacher> {
   const list = getLocalTeachers();
   const index = list.findIndex((t) => t.id === id);
   if (index === -1) {
     throw new Error('Teacher not found');
   }
+  const nextAccountType = accountType || list[index].accountType || 'teacher';
+  const nextPermissions = permissions || list[index].permissions || [];
 
   const updated: Teacher = {
     ...list[index],
     name: name.trim(),
     email: email.trim().toLowerCase(),
     password: password && password.trim() ? password.trim() : list[index].password,
+    accountType: nextAccountType,
+    ...(nextAccountType === 'user' ? { permissions: nextPermissions } : { permissions: undefined }),
   };
 
   list[index] = updated;
@@ -158,9 +168,11 @@ export async function updateTeacher(
 
   if (isFirebaseConfigured && db) {
     try {
-      const payload: Record<string, string> = {
+      const payload: Record<string, unknown> = {
         name: updated.name,
         email: updated.email,
+        accountType: updated.accountType || 'teacher',
+        permissions: updated.permissions || [],
       };
       if (password && password.trim()) {
         payload.password = updated.password;
@@ -213,10 +225,11 @@ export async function loginUser(identifier: string, password: string): Promise<U
       }
     } catch (error) { console.warn('Teacher picture service is unavailable:', error); }
     const session: UserSession = {
-      role: 'teacher',
+      role: matched.accountType === 'user' ? 'user' : 'teacher',
       name: matched.name,
       email: matched.email,
       teacherId: matched.id,
+      permissions: matched.accountType === 'user' ? matched.permissions || [] : undefined,
       profileImageUrl,
     };
     localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
@@ -284,7 +297,7 @@ export function saveSession(session: UserSession): void {
 
 export async function logoutUser(): Promise<void> {
   const session = getCurrentSession();
-  if (session?.role === 'teacher') {
+  if (session?.role === 'teacher' || session?.role === 'user') {
     try { await fetch('/api/teacher-logout', { method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(5000) }); }
     catch (error) { console.warn('Could not clear teacher picture session:', error); }
   }

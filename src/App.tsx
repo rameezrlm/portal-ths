@@ -31,6 +31,7 @@ import { addStudent, fetchStudents } from './services/studentService';
 import { fetchTeachers } from './services/teacherService';
 import {
   enrollStudentInClass,
+  fetchClasses,
   fetchClassesForStudent,
   fetchClassesForTeacher,
   filterStudentsByClass,
@@ -188,6 +189,11 @@ export default function App() {
       void fetchClassesForTeacher(teacherId)
         .then(setMyClasses)
         .finally(() => setClassesLoading(false));
+    }
+    if (session.role === 'user') {
+      setMyClasses([]);
+      setClassesLoading(true);
+      void fetchClasses().then(setMyClasses).finally(() => setClassesLoading(false));
     }
     if (session.role === 'student' && session.studentId) {
       const studentId = session.studentId;
@@ -486,7 +492,11 @@ export default function App() {
     );
   }
 
-  // 4. Teacher Role: Gradebook + existing Attendance section
+  // Restricted staff accounts share the course workspace, with only their permitted sections visible.
+  const userSections = session.role === 'user' ? session.permissions || [] : undefined;
+  const selectUserSection = (section: CourseSection) => setTeacherView(section);
+
+  // 4. Teacher and restricted staff course workspace
   return (
     <div className="role-dashboard app-shell min-h-screen text-slate-800 flex flex-col antialiased">
       {/* Toast Notification */}
@@ -515,21 +525,21 @@ export default function App() {
         onLogout={handleLogout}
         onToggleSidebar={() => setSidebarExpanded(value => !value)}
         isSidebarExpanded={sidebarExpanded}
-        onOpenProfile={() =>
+        onOpenProfile={session.role === 'user' ? undefined : () =>
           setTeacherView((prev) => (prev === 'profile' ? 'announcements' : 'profile'))
         }
         isProfileActive={teacherView === 'profile'}
       />
 
-      <RoleSidebar role="teacher" settings={platformSettings} active={teacherView} badge={announcementBadge} expanded={sidebarExpanded} profileName={session.name} profileImageUrl={session.profileImageUrl} onClose={() => setSidebarExpanded(false)} onSelect={id => {
+      <RoleSidebar role={session.role === 'user' ? 'user' : 'teacher'} settings={platformSettings} active={session.role === 'user' ? 'courses' : teacherView} badge={announcementBadge} expanded={sidebarExpanded} profileName={session.name} profileImageUrl={session.profileImageUrl} onClose={() => setSidebarExpanded(false)} onSelect={id => {
         if (id === 'courses') { setSelectedClassId(null); setTeacherView('courses'); }
-        else if (id === 'announcements') { setSelectedClassId(null); openAnnouncementView('teacher'); }
-        else if (id === 'apps') { setSelectedClassId(null); setTeacherView('apps'); }
+        else if (id === 'announcements' && session.role !== 'user') { setSelectedClassId(null); openAnnouncementView('teacher'); }
+        else if (id === 'apps' && session.role !== 'user') { setSelectedClassId(null); setTeacherView('apps'); }
         else if (id !== 'apps' || platformSettings.teachersCanManageApps) setTeacherView(id as typeof teacherView);
       }} />
       {/* Main Container */}
       <main className="role-dashboard-main flex-1 w-full px-4 sm:px-6 lg:px-8 xl:px-10 py-6 space-y-6">
-        {teacherView === 'timetable' ? <Timetable role="teacher" classes={myClasses} teacherId={teacherId} /> : teacherView === 'apps' && platformSettings.teachersCanManageApps ? <AdminWebApps showToast={showToast} /> : teacherView === 'announcements' && !selectedClassId ? <StudentAnnouncements classId="" /> : teacherView === 'profile' && !teacherId ? <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600"><p>Your teacher account could not be loaded. Please sign out and sign in again.</p><button type="button" onClick={handleLogout} className="mt-3 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700">Sign out</button></div> : teacherView === 'profile' && teacherId ? (
+        {session.role !== 'user' && teacherView === 'timetable' ? <Timetable role="teacher" classes={myClasses} teacherId={teacherId} /> : session.role !== 'user' && teacherView === 'apps' && platformSettings.teachersCanManageApps ? <AdminWebApps showToast={showToast} /> : session.role !== 'user' && teacherView === 'announcements' && !selectedClassId ? <StudentAnnouncements classId="" /> : session.role !== 'user' && teacherView === 'profile' && !teacherId ? <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600"><p>Your teacher account could not be loaded. Please sign out and sign in again.</p><button type="button" onClick={handleLogout} className="mt-3 rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-700">Sign out</button></div> : session.role !== 'user' && teacherView === 'profile' && teacherId ? (
           <TeacherProfile
             teacherId={teacherId}
             session={session}
@@ -541,21 +551,25 @@ export default function App() {
           />
         ) : !selectedClassId ? (
           <div className="space-y-6">
-            <TeacherOverview
+            {session.role !== 'user' && <TeacherOverview
               session={session}
               teacherId={teacherId}
               classes={myClasses}
               isLoading={classesLoading}
               onOpenTimetable={() => setTeacherView('timetable')}
-            />
+            />}
             <CoursePicker
               classes={myClasses}
-              roleLabel="teacher"
+              roleLabel={session.role === 'user' ? 'user' : 'teacher'}
+              visibleSections={userSections}
               isLoading={classesLoading}
               unreadCountForCourse={courseAnnouncementBadge}
               announcementCountForCourse={courseAnnouncementCount}
               activityUserKey={announcementUserKey}
-              onSelect={(classId, section) => openCourseSection('teacher', classId, section)}
+              onSelect={(classId, section) => {
+                if (session.role === 'user') { setSelectedClassId(classId); selectUserSection(section); }
+                else openCourseSection('teacher', classId, section);
+              }}
             />
           </div>
         ) : (
@@ -575,7 +589,7 @@ export default function App() {
           </button>
           <span className="text-xs font-bold text-slate-800">{selectedClass?.name}</span>
         </div>
-        <CourseWorkspaceNav className={selectedClass?.name || 'Course'} active={teacherView as CourseSection} onSelect={section => openCourseSection('teacher', selectedClassId, section)} />
+        <CourseWorkspaceNav className={selectedClass?.name || 'Course'} active={teacherView as CourseSection} visibleSections={userSections} onSelect={section => session.role === 'user' ? selectUserSection(section) : openCourseSection('teacher', selectedClassId, section)} />
         </div>
 
         {teacherView === 'gradebook' && (
@@ -596,6 +610,7 @@ export default function App() {
               classId={selectedClassId}
               session={session}
               showToast={showToast}
+              readOnly={session.role === 'user'}
             />
           </section>
         )}
