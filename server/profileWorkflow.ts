@@ -1,4 +1,4 @@
-import type { DrivePicture } from './drive';
+import type { DrivePicture } from './drive.js';
 
 type PictureOwner = { id: string; profileImageUrl?: string; profileImageFileId?: string };
 export interface PictureDependencies<T extends PictureOwner> {

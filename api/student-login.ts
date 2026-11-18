@@ -1,6 +1,6 @@
-import { findStudentByEmail } from '../server/firestore';
-import { json, readJson } from '../server/http';
-import { issueStudentCookie, passwordMatches, sameOrigin } from '../server/session';
+import { findStudentByEmail } from '../server/firestore.js';
+import { json, readJson } from '../server/http.js';
+import { issueStudentCookie, passwordMatches, sameOrigin } from '../server/session.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {

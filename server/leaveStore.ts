@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { LeaveRequest } from '../src/types';
-import { basePath, FirestoreError, firestoreFetch } from './firestore';
+import type { LeaveRequest } from '../src/types.js';
+import { basePath, FirestoreError, firestoreFetch } from './firestore.js';
 
 type Value = { stringValue?: string; arrayValue?: { values?: Value[] } };
 type Document = { name: string; updateTime: string; fields?: Record<string, Value> };

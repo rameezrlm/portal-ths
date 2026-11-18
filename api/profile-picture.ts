@@ -1,8 +1,8 @@
-import { decodeProfileImage, trashDrivePicture, trashTeacherDrivePicture, uploadDrivePicture, uploadTeacherDrivePicture } from '../server/drive';
-import { setStudentPicture, setTeacherPicture } from '../server/firestore';
-import { json, readJson } from '../server/http';
-import { replaceProfilePicture, removeProfilePicture } from '../server/profileWorkflow';
-import { authenticateStudent, authenticateTeacher, sameOrigin } from '../server/session';
+import { decodeProfileImage, trashDrivePicture, trashTeacherDrivePicture, uploadDrivePicture, uploadTeacherDrivePicture } from '../server/drive.js';
+import { setStudentPicture, setTeacherPicture } from '../server/firestore.js';
+import { json, readJson } from '../server/http.js';
+import { replaceProfilePicture, removeProfilePicture } from '../server/profileWorkflow.js';
+import { authenticateStudent, authenticateTeacher, sameOrigin } from '../server/session.js';
 
 const studentDependencies = { upload: uploadDrivePicture, trash: trashDrivePicture, save: setStudentPicture };
 const teacherDependencies = { upload: uploadTeacherDrivePicture, trash: trashTeacherDrivePicture, save: setTeacherPicture };

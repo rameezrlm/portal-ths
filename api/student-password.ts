@@ -1,6 +1,6 @@
-import { FirestoreError, setStudentPassword, type StudentRecord } from '../server/firestore';
-import { json, readJson } from '../server/http';
-import { authenticateStudent, issueStudentCookie, passwordMatches, sameOrigin } from '../server/session';
+import { FirestoreError, setStudentPassword, type StudentRecord } from '../server/firestore.js';
+import { json, readJson } from '../server/http.js';
+import { authenticateStudent, issueStudentCookie, passwordMatches, sameOrigin } from '../server/session.js';
 
 interface Dependencies {
   authenticate: (request: Request) => Promise<StudentRecord | null>;

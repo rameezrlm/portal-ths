@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import type { StudentRecord, TeacherRecord } from './firestore';
-import { getStudentById, getTeacherById } from './firestore';
+import type { StudentRecord, TeacherRecord } from './firestore.js';
+import { getStudentById, getTeacherById } from './firestore.js';
 
 const COOKIE = 'ths_student_session';
 const TEACHER_COOKIE = 'ths_teacher_session';

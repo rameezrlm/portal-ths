@@ -1,8 +1,8 @@
-import { authenticateStudent, authenticateTeacher, sameOrigin } from '../server/session';
-import { classMembers, createLeaveRequest, getLeaveRequest, listLeaveRequests, reviewLeaveRequest } from '../server/leaveStore';
-import { json, readJson } from '../server/http';
-import { leaveInputError } from '../src/utils/leaveValidation';
-import { FirestoreError } from '../server/firestore';
+import { authenticateStudent, authenticateTeacher, sameOrigin } from '../server/session.js';
+import { classMembers, createLeaveRequest, getLeaveRequest, listLeaveRequests, reviewLeaveRequest } from '../server/leaveStore.js';
+import { json, readJson } from '../server/http.js';
+import { leaveInputError } from '../src/utils/leaveValidation.js';
+import { FirestoreError } from '../server/firestore.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {

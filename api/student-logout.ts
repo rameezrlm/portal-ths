@@ -1,5 +1,5 @@
-import { json } from '../server/http';
-import { clearStudentCookie, sameOrigin } from '../server/session';
+import { json } from '../server/http.js';
+import { clearStudentCookie, sameOrigin } from '../server/session.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {
